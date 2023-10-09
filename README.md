@@ -36,4 +36,9 @@ Siccome InfluxDB nasce per gestire serie temporali e non altro, la maggior parte
 ### [Descrizione della base dati influxdb]
 [TODO]
 
+## Riempimento dei dati e prestazioni di inserimento
+[TODO]
+
+## Estrazione dei dati e prestazioni di select
+[TODO]
 
