@@ -85,8 +85,6 @@ for t,v in all_data.items():
   print(t, len(v['records']))
 
 
-
-
 # print(tables)
 exit(0)
 
