@@ -30,11 +30,49 @@ Il progetto è realizzato in Python, utilizza Flask per la creazione di un servi
 
 ## Descrizione dell'organizzazione dei dati
 Siccome InfluxDB nasce per gestire serie temporali e non altro, la maggior parte dei dati richiedono il salvataggio in un database di appoggio che può essere proprio PostgreSQL. Mentre PostgreSQL può essere l'unico database utilizzato per raggiungere l'obiettivo nel caso di InfluxDB si avrà invece la coesistenza dei due database, uno utilizzato per la memorizzazione di tutti i dati non temporali ed uno utilizzato per questi ultimi.
+In questo progetto si immagina l'anagrafica di fermate e linee residenti in una tabella di PostgreSQL dedicata che non viene però implementata perché non interferisca con le query in esame. La struttura del database PostgreSQL da cui sono stati estratti i dati ha le seguenti colonne:
+
+- [x] schedule_id: id della pianificazione attiva
+- [x] block_id: id del turno macchina
+- [x] trip_id: id della corsa
+- [x] arrival_time: orario di arrivo previsto
+- [x] real_time: orario di arrivo reale
+- [x] stop_id: id della fermata servita
+- [ ] stop_sequence: autoincrementale della fermata all'interno del turno macchina
+- [ ] shape_dist_traveled: distanza prevista della fermata dalla partenza della corsa
+- [ ] real_dist_traveled distanza percorsa dal mezzo dalla partenza della corsa
+- [x] day_of_service: giorno di servizio
+- [x] psg_up: passeggeri saliti alla fermata
+- [x] psg_down: passeggeri scesi alla fermata
+- [ ] creation_timestamp: timestamp di creazione del record
+- [ ] update_timestamp: timestamp di aggiornamento del record
+- [x] vehicle_id: id del veicolo che ha effettuato la fermata
+- [x] delay: ritardo rispetto al passaggio previsto
+- [ ] reported: fermata recistrata
+- [x] route_id: id della linea
+- [ ] quality: qualità del servizio in base al ritardo
+- [ ] served: non usato
+- [ ] fake: boolean che indica se la registrazione della fermata è reale o calcolata a posteriori
+
+I dati indicati con un check sono stati implementati in questo progetto, gli altri dati sono stati esclusi perché considerati non utili ai fini del confronto tra i database.
 
 ### [Descrizione della base dati postgres]
-[TODO]
+Per l'implementazione in PostgreSQL è stata creata una tabella con i dati sopra indicati.
 ### [Descrizione della base dati influxdb]
-[TODO]
+Per l'implementazione in InfluxDB è stato utilizzato un bucket con i seguenti elementi:
+- (_time) timestamp: ora del passaggio o dell'orario previsto
+- (_measurement) measurement: "R" per passaggio reale, "P" per l'orario previsto
+- (tag) schedule_id
+- (tag) block_id
+- (tag) trip_id
+- (tag) stop_id
+- (tag) day_of_service
+- (tag) route_id
+- (_field) "psg_up/psg_down/vehicle_id"
+- (_value) numero di passeggeri saliti e scesi, id mezzo
+
+E' importante ricordare che in InfluxDB solo i tag vengono indicizzati, i valori (_field e _value) non sono indicizzati. Si è scelto quindi di utilizzare il numero di passeggeri saliti/scesi ed il mezzo che ha effettuato la fermata come valori memorizzati ed i vari identificatori della fermata (la fermata fisica, la linea, la corsa, eccetera) come tag. Sono anche quei campi tendenzialmente ripetitivi (una corsa ha molte fermate, da una fermata passano molte corse, eccetera) e questo assicura di non far esplodere la cardinalità della serie anche se essa sarà comunque relativamente alta, in particolare per colpa dello stop_id.
+
 
 ## Riempimento dei dati e prestazioni di inserimento
 [TODO]
