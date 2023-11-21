@@ -76,7 +76,7 @@ all_data = { **rpt_stop_details, **prev_stop_details, **rpt_trips }
 stops = {}
 routes = {}
 for rec in all_data['prev_stop_details']['records']:
-  stops[rec['stop_id']] = rec['stop_name']
+  stops[(rec['stop_id'], rec['route_id'])] = rec['stop_name']
   routes[rec['route_id']] = rec['route_name']
 
 for t,v in all_data.items():
@@ -84,6 +84,13 @@ for t,v in all_data.items():
   # print(t, media_delay)
   print(t, len(v['records']))
 
+print('\nRoute examples')
+for id, name in list(routes.items())[:10]:
+  print(f'Route {id:>2}: {name}')
+
+print('\nStop examples')
+for id, name in list(stops.items())[:10]:
+  print(f'Stop {id[0]:>3} of route {id[1]:>2}: {name}')
 
 # print(tables)
 exit(0)
