@@ -4,6 +4,7 @@ Progetto d'esame per Big Data AA 2022/2023 - Matricola VR457811
 ## Contesto ed introduzione
 
 Quella che segue è una relazione che prova a confrontare le prestazioni nella gestione di un numeri significativo di dati in due diversi tipi di database: PostgreSQL e InfluxDB; e lo fa basandosi in parte su un confronto nell'utilizzo reale degli stessi nel contesto di seguito descritto ed in parte su letteratura già esistente.
+Trattandosi di due database profondamente diversi vedremo anche le differenze in termini di architettura, implementazione ed interrogazione.
 La parte implementativa e di analisi diretta del progetto si concentra sul salvataggio e sulla rielaborazione di dati di tipo temporale e più nello specifico dati relativi alla registrazione dei passaggi a fermata dei mezzi di trasporto pubblico di una città italiana di medie dimensioni. L'idea nasce come ipotetica estensione delle funzionalità di un sistema AVM (Automatic Vehicle Monitoring) realizzato dal sottoscritto in ambito lavorativo. Tale sistema riceve i dati grezzi da un sistema gps presente a bordo di ogni autobus e fornisce le seguenti funzionalità:
 - verifica che il mezzo sia correttamente sul percorso a lui assegnato
 - riconosce il passaggio a fermata, ovvero l'azione di passaggio accanto ad ogni fermata designata e con eventuale fermata del mezzo per far salire e scendere i passeggeri
@@ -24,6 +25,15 @@ L'obiettivo è la creazione di statistiche che sarebbero utili all'azienda clien
 
 I due database confrontati non differiscono solo nella struttura (relazionale vs buckets) e nell'obiettivo (dati generici vs serie temporali) ma anche nell'architettura di base. Mentre PostgreSQL viene eseguito solitamente come mono-istanza in locale, sulla macchina che ospita anche gli altri servizi o al massimo su una macchina dedicata, InfluxDB nasce come sistema di memorizzazione in cloud ed è fortemente orientato a tale scenario di utilizzo. Per questo progetto, tuttavia, è stata utilizzata una versione installabile in locale per poter confrontare le prestazioni a parità di risorse hardware.
 
+# Parte teorica
+
+## Database model
+InfluxDB è un "timeseries database", cioè un database orientato al salvataggio di dati temporali
+## Architetura
+## Licenza
+## Use cases
+## Scalability
+# Parte pratica
 ## [Tecnologie usate]
 
 Il progetto è realizzato in Python, utilizza Flask per la creazione di un servizio web ed apposite librerie per l'esecuzione dei salvataggi e delle interrogazioni.
