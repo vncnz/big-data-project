@@ -23,7 +23,7 @@ import re
 # 	 (958,'611','86','08:16:00','2023-07-01 08:07:00','436',36,13.903000831604004,NULL,'2023-07-01',NULL,NULL,'2023-07-01 08:40:05.827817+02','2023-07-01 08:07:12+02',205,-540,true,'2',NULL,false,false),
 # 	 (958,'611','86','08:17:00','2023-07-01 08:08:12','255',37,14.194000244140625,NULL,'2023-07-01',0,0,'2023-07-01 08:40:05.827817+02','2023-07-01 08:08:23+02',205,-528,true,'2',NULL,false,false);"""
 
-small = False
+small = True
 
 def fileToDict (filename) -> dict:
 
@@ -34,7 +34,7 @@ def fileToDict (filename) -> dict:
     cmds = file.read().split(';')
     print(f'\rFile {filename} letto, sono {len(cmds)} comandi')
 
-    if small: cmds = cmds[:1000]
+    if small: cmds = cmds[:10000]
 
     for cmd_idx, cmd in enumerate(cmds):
       now_perc = int((cmd_idx + 1) / len(cmds) * 100)
@@ -95,8 +95,10 @@ for id, name in list(stops.items())[:10]:
   print(f'Stop {id[0]:>3} of route {id[1]:>2}: {name}')
 
 print('\nPrev examples')
-for id, name in list(prevs.items())[:1]:
-  print(f'prev {id[0]:>3}, route {id[1]:>2}, trip {id[2]:>3}, dos {id[3]:>10}: {name}')
+onlyServed = False
+lst = onlyServed and filter(lambda x: x[1]['served_time'], prevs.items()) or prevs.items()
+for id, data in list(lst)[:3]: # list(prevs.items())[:3]:
+  print(f'prev {id[0]:>3}, route {id[1]:>2}, trip {id[2]:>3}, dos {id[3]:>10}: {data["aimed_arrival_time"]} / {data["served_time"]}')
 
 # print(tables)
 exit(0)
