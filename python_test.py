@@ -1,4 +1,4 @@
-import re
+import re, datetime, random
 
 # txt = """INSERT INTO public.rpt_stop_details (schedule_id,block_id,trip_id,arrival_time,real_time,stop_id,stop_sequence,shape_dist_traveled,real_dist_traveled,day_of_service,psg_up,psg_down,creation_timestamp,update_timestamp,vehicle_id,delay,reported,route_id,quality,served,fake) VALUES
 # 	 (958,'606','104','15:10:00',NULL,'255',1,0.0,NULL,'2023-07-01',NULL,NULL,'2023-07-01 08:40:05.827817+02',NULL,NULL,NULL,NULL,'10',NULL,NULL,false),
@@ -34,7 +34,7 @@ def fileToDict (filename) -> dict:
     cmds = file.read().split(';')
     print(f'\rFile {filename} letto, sono {len(cmds)} comandi')
 
-    if small: cmds = cmds[:10000]
+    if small: cmds = cmds[:1000]
 
     for cmd_idx, cmd in enumerate(cmds):
       now_perc = int((cmd_idx + 1) / len(cmds) * 100)
@@ -72,6 +72,7 @@ prev_stop_details = fileToDict("prev_stop_details_202308080953.sql")
 rpt_trips = fileToDict("rpt_trips_202308080953.sql")
 
 all_data = { **rpt_stop_details, **prev_stop_details, **rpt_trips }
+dateformat = "%Y-%m-%d %H:%M:%S"
 
 stops = {}
 routes = {}
@@ -79,7 +80,13 @@ prevs = {}
 for rec in all_data['prev_stop_details']['records']:
   stops[(rec['stop_id'], rec['route_id'])] = rec['stop_name']
   routes[rec['route_id']] = rec['route_name']
-  prevs[(rec['stop_id'], rec['route_id'], rec['trip_id'], rec['day_of_service'])] = rec
+
+  # FAKE SERVED_TIME
+  dt = datetime.datetime.strptime(rec["aimed_arrival_time"], dateformat)
+  r = random.randint(-300, 300)
+  rec["served_time"] = (dt + datetime.timedelta(seconds = r)).strftime(dateformat)
+
+  prevs[(rec['route_id'], rec['trip_id'], rec['stop_id'], rec['day_of_service'])] = rec
 
 for t,v in all_data.items():
   # media_delay = sum([rec['delay'] for rec in v['records'] if rec['delay']]) / len(v['records'])
@@ -95,10 +102,36 @@ for id, name in list(stops.items())[:10]:
   print(f'Stop {id[0]:>3} of route {id[1]:>2}: {name}')
 
 print('\nPrev examples')
+
 onlyServed = False
-lst = onlyServed and filter(lambda x: x[1]['served_time'], prevs.items()) or prevs.items()
-for id, data in list(lst)[:3]: # list(prevs.items())[:3]:
-  print(f'prev {id[0]:>3}, route {id[1]:>2}, trip {id[2]:>3}, dos {id[3]:>10}: {data["aimed_arrival_time"]} / {data["served_time"]}')
+items = list(onlyServed and filter(lambda x: x[1]['served_time'], prevs.items()) or prevs.items())
+
+prevs = sorted(items, key=lambda x: x[0])
+
+for id, data in prevs[:3]: # list(prevs.items())[:3]:
+  print(f'route {id[0]:>2}, trip {id[1]:>3}, stop {id[2]:>3}, dos {id[3]:>10}: {data["aimed_arrival_time"]} / {data["served_time"]}')
+
+# QUI POSSO INIZIARE A RAGGRUPPARE I DATI PER OTTENERE LE STATISTICHE
+grouped_by_trip = {}
+for id, data in prevs:
+  k = (id[0], id[2])
+  if not k in grouped_by_trip: grouped_by_trip[k] = []
+  grouped_by_trip[k].append(data)
+
+for k,v in grouped_by_trip.items():
+  print('by trip:', k, len(v))
+
+
+grouped_by_stop = {}
+for id, data in prevs:
+  k = id[2]
+  if not k in grouped_by_stop: grouped_by_stop[k] = []
+  grouped_by_stop[k].append(data)
+
+for k,v in grouped_by_stop.items():
+  print('by stop:', k, len(v))
+
+
 
 # print(tables)
 exit(0)
