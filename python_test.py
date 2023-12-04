@@ -23,7 +23,7 @@ import re, datetime, random
 # 	 (958,'611','86','08:16:00','2023-07-01 08:07:00','436',36,13.903000831604004,NULL,'2023-07-01',NULL,NULL,'2023-07-01 08:40:05.827817+02','2023-07-01 08:07:12+02',205,-540,true,'2',NULL,false,false),
 # 	 (958,'611','86','08:17:00','2023-07-01 08:08:12','255',37,14.194000244140625,NULL,'2023-07-01',0,0,'2023-07-01 08:40:05.827817+02','2023-07-01 08:08:23+02',205,-528,true,'2',NULL,false,false);"""
 
-small = True
+small = False
 
 def fileToDict (filename) -> dict:
 
@@ -85,6 +85,7 @@ for rec in all_data['prev_stop_details']['records']:
   dt = datetime.datetime.strptime(rec["aimed_arrival_time"], dateformat)
   r = random.randint(-300, 300)
   rec["served_time"] = (dt + datetime.timedelta(seconds = r)).strftime(dateformat)
+  rec["delay"] = r
 
   prevs[(rec['route_id'], rec['trip_id'], rec['stop_id'], rec['day_of_service'])] = rec
 
@@ -114,22 +115,24 @@ for id, data in prevs[:3]: # list(prevs.items())[:3]:
 # QUI POSSO INIZIARE A RAGGRUPPARE I DATI PER OTTENERE LE STATISTICHE
 grouped_by_trip = {}
 for id, data in prevs:
-  k = (id[0], id[2])
+  stop, trip, stop, day_of_service = id
+  k = (stop, trip, day_of_service)
   if not k in grouped_by_trip: grouped_by_trip[k] = []
   grouped_by_trip[k].append(data)
 
-for k,v in grouped_by_trip.items():
+for k,v in sorted(grouped_by_trip.items(), key = lambda item: item[0][1]):
   print('by trip:', k, len(v))
 
+if False:
+  grouped_by_stop = {}
+  for id, data in prevs:
+    k = id[2]
+    if not k in grouped_by_stop: grouped_by_stop[k] = []
+    grouped_by_stop[k].append(data)
 
-grouped_by_stop = {}
-for id, data in prevs:
-  k = id[2]
-  if not k in grouped_by_stop: grouped_by_stop[k] = []
-  grouped_by_stop[k].append(data)
-
-for k,v in grouped_by_stop.items():
-  print('by stop:', k, len(v))
+  for k,v in list(grouped_by_stop.items())[:10]:
+    print(f'Ritardo medio fermata {k} {sum(map(lambda x: x["delay"], v))/len(v)} secondi per {len(v)} passaggi')
+    # print('by stop:', k, len(v))
 
 
 
