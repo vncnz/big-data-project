@@ -43,7 +43,7 @@ def fileToDict (filename) -> dict:
       if not cmd: continue
       cmd = cmd.strip()
       if not cmd or len(cmd) < 20: continue
-      cmd = cmd[19:]
+      cmd = cmd[12:]
       table, data = cmd.split(' ', 1)
 
       if not table in ltables:
@@ -67,27 +67,53 @@ def fileToDict (filename) -> dict:
   print()
   return ltables
 
-rpt_stop_details = fileToDict("rpt_stop_details_202308080948.sql")
-prev_stop_details = fileToDict("prev_stop_details_202308080953.sql")
-rpt_trips = fileToDict("rpt_trips_202308080953.sql")
+rpt_stop_details = fileToDict("rpt_stop_details_202312041753.sql")
+# prev_stop_details = fileToDict("prev_stop_details_202308080953.sql")
+rpt_trips = fileToDict("rpt_trips_202312041755.sql")
 
-all_data = { **rpt_stop_details, **prev_stop_details, **rpt_trips }
+all_data = { **rpt_stop_details, **rpt_trips }
 dateformat = "%Y-%m-%d %H:%M:%S"
 
-stops = {}
+stop_calls = {}
 routes = {}
-prevs = {}
-for rec in all_data['prev_stop_details']['records']:
-  stops[(rec['stop_id'], rec['route_id'])] = rec['stop_name']
-  routes[rec['route_id']] = rec['route_name']
+trips = {}
+stops = {}
+# prevs = {}
+for rec in all_data['rpt_stop_details']['records']:
+  s = rec['stop_id']
+  r = rec['route_id']
+  t = rec['trip_id']
+  d = rec['day_of_service']
+  routes[r] = True
+  trips[t] = True
+  stops[s] = True
+  k = (r, t, s)
+  if not k in stop_calls: stop_calls[k] = [rec]
+  else: stop_calls[k].append(rec)
 
-  # FAKE SERVED_TIME
-  dt = datetime.datetime.strptime(rec["aimed_arrival_time"], dateformat)
-  r = random.randint(-300, 300)
-  rec["served_time"] = (dt + datetime.timedelta(seconds = r)).strftime(dateformat)
-  rec["delay"] = r
+routes = routes.keys()
+trips = trips.keys()
+stops = stops.keys()
 
-  prevs[(rec['route_id'], rec['trip_id'], rec['stop_id'], rec['day_of_service'])] = rec
+print(f'Caricati {len(routes)} linee, {len(trips)} corse, {len(stops)} fermate, {len(stop_calls.keys())} stop calls grouped by day')
+
+m = sum(map(lambda x: len(x), stop_calls.values())) / len(stop_calls.keys())
+f = {}
+for v,k in stop_calls.items():
+  if len(k) > 1: f[v] = k
+
+print(f'{m} giorni in media per stop_call, {len(f.keys())} stop_calls con più di un passaggio')
+
+
+exit(0)
+
+# FAKE SERVED_TIME
+# dt = datetime.datetime.strptime(rec["aimed_arrival_time"], dateformat)
+# r = random.randint(-300, 300)
+# rec["served_time"] = (dt + datetime.timedelta(seconds = r)).strftime(dateformat)
+# rec["delay"] = r
+
+# prevs[(rec['route_id'], rec['trip_id'], rec['stop_id'], rec['day_of_service'])] = rec
 
 for t,v in all_data.items():
   # media_delay = sum([rec['delay'] for rec in v['records'] if rec['delay']]) / len(v['records'])
@@ -101,8 +127,6 @@ for id, name in list(routes.items())[:10]:
 print('\nStop examples')
 for id, name in list(stops.items())[:10]:
   print(f'Stop {id[0]:>3} of route {id[1]:>2}: {name}')
-
-print('\nPrev examples')
 
 onlyServed = False
 items = list(onlyServed and filter(lambda x: x[1]['served_time'], prevs.items()) or prevs.items())
