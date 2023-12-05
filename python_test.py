@@ -80,6 +80,7 @@ trips = {}
 stops = {}
 # prevs = {}
 for rec in all_data['rpt_stop_details']['records']:
+  if not rec['served']: continue
   s = rec['stop_id']
   r = rec['route_id']
   t = rec['trip_id']
@@ -104,6 +105,13 @@ for v,k in stop_calls.items():
 
 print(f'{m} giorni in media per stop_call, {len(f.keys())} stop_calls con più di un passaggio')
 
+for k,v in list(f.items()):
+  v = list(filter(lambda x: x['delay'], v))
+  if len(v):
+    m = sum(map(lambda x: float(x['delay']), v)) / len(v)
+    psg_up = sum(map(lambda x: float(x['psg_up'] or 0), v)) / len(v)
+    psg_down = sum(map(lambda x: float(x['psg_down'] or 0), v)) / len(v)
+    print(f'route: {k[0]}\ttrip: {k[1]}\tstop: {k[2]}\t->\tmedia: {m}\tpsg_up: {psg_up}\tpsg_down: {psg_down}')
 
 exit(0)
 
