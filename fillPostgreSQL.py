@@ -14,7 +14,7 @@ dos = set()
 for rec in pt_stop_details['rpt_stop_details']['records']:
     # schedule_id, block_id, trip_id, arrival_time, real_time, stop_id, stop_sequence, shape_dist_traveled, real_dist_traveled, day_of_service,
     # psg_up, psg_down, creation_timestamp, update_timestamp, vehicle_id, delay, reported, route_id, quality, served, fake, count
-    if rec['served'] or rec['psg_up'] or rec['psg_down']:
+    if rec['delay'] is not None or rec['psg_up'] or rec['psg_down']:
         newrec = {
             'route': rec['route_id'],
             'trip': rec['trip_id'],
@@ -25,12 +25,17 @@ for rec in pt_stop_details['rpt_stop_details']['records']:
         }
 
         # Le separo perché in campo arrivano separatamente!
-        newrec1 = { **newrec, 'field': 'psg_up', 'value': rec['psg_up'] }
-        newrec2 = { **newrec, 'field': 'psg_down', 'value': rec['psg_down'] }
-        newrec3 = { **newrec, 'field': 'delay', 'value': rec['delay'] }
-        records.append(newrec1)
-        records.append(newrec2)
-        records.append(newrec3)
+        if rec['psg_up'] is not None:
+            newrec1 = { **newrec, 'field': 'psg_up', 'value': rec['psg_up'] }
+            records.append(newrec1)
+
+        if rec['psg_down'] is not None:
+            newrec2 = { **newrec, 'field': 'psg_down', 'value': rec['psg_down'] }
+            records.append(newrec2)
+        
+        if rec['delay'] is not None:
+            newrec3 = { **newrec, 'field': 'delay', 'value': rec['delay'] }
+            records.append(newrec3)
 
         routes.add(rec['route_id'])
         trips.add(rec['trip_id'])
@@ -38,5 +43,7 @@ for rec in pt_stop_details['rpt_stop_details']['records']:
         stops.add(rec['stop_id'])
         dos.add(rec['day_of_service'])
 
-for rec in records[:30]:
+numToPrint = 30
+for rec in records[:numToPrint]:
     print(rec)
+print(f'{len(records) - numToPrint} records omessi')
