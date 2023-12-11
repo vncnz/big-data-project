@@ -11,11 +11,22 @@ def fileToDict (filename, onlySample=False) -> dict:
 
     if onlySample: cmds = cmds[:1000]
 
+    cumulative_row = ''
+
     for cmd_idx, cmd in enumerate(cmds):
       now_perc = int((cmd_idx + 1) / len(cmds) * 100)
       prev_perc = int(cmd_idx / len(cmds) * 100)
       if now_perc != prev_perc: print(f'\rSto parsando la riga {cmd_idx + 1}/{len(cmds)} ({now_perc}%)', end='')
       if not cmd: continue
+
+      if cmd[-1] != ')':
+        cumulative_row += cmd
+        continue
+      elif cumulative_row:
+         cmd = cumulative_row + cmd
+         cmd = cmd.replace('\n', '').replace('\t', '')
+         cumulative_row = ''
+
       cmd = cmd.strip()
       if not cmd or len(cmd) < 20: continue
       cmd = cmd[12:]
