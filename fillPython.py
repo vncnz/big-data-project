@@ -13,20 +13,20 @@ if read_file:
 
     one_time = time.perf_counter()
 
-    print(f"The loading time for {len(records)} trips in python is: {timedelta(seconds = (one_time - zero_time))}")
+    print(f"The loading time for {len(records)} records in python is: {timedelta(seconds = (one_time - zero_time))}")
 
     pickle_time_start = time.perf_counter()
     with open('records', 'wb') as file:
         pickle.dump(records, file)
     pickle_time_end = time.perf_counter()
-    print(f"The saving time for {len(records)} trips in python is: {timedelta(seconds = (pickle_time_end - pickle_time_start))}")
+    print(f"The saving time for {len(records)} records in python is: {timedelta(seconds = (pickle_time_end - pickle_time_start))}")
 
 else:
     pickle_time_start = time.perf_counter()
     with open('records', 'rb') as file:
         records = pickle.load(file)
     pickle_time_end = time.perf_counter()
-    print(f"The loading time for {len(records)} trips in python is: {timedelta(seconds = (pickle_time_end - pickle_time_start))}")
+    print(f"The loading time for {len(records)} records in python is: {timedelta(seconds = (pickle_time_end - pickle_time_start))}")
 
 start_time = time.perf_counter()
 
