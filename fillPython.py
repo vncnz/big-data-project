@@ -1,10 +1,32 @@
 from datetime import timedelta
 from utilities import groupBy, produceData
-import itertools, time
+import itertools, time, pickle
 
-stopcalls_path = "rpt_stop_details_202312041753.sql"
-stops_path = "sch_gtfs_stops_202312071735.sql"
-records = produceData(stopcalls_path, stops_path)
+read_file = False
+
+if read_file:
+    zero_time = time.perf_counter()
+
+    stopcalls_path = "rpt_stop_details_202312071704.sql"
+    stops_path = "sch_gtfs_stops_202312071735.sql"
+    records = produceData(stopcalls_path, stops_path)
+
+    one_time = time.perf_counter()
+
+    print(f"The loading time for {len(records)} trips in python is: {timedelta(seconds = (one_time - zero_time))}")
+
+    pickle_time_start = time.perf_counter()
+    with open('records', 'wb') as file:
+        pickle.dump(records, file)
+    pickle_time_end = time.perf_counter()
+    print(f"The saving time for {len(records)} trips in python is: {timedelta(seconds = (pickle_time_end - pickle_time_start))}")
+
+else:
+    pickle_time_start = time.perf_counter()
+    with open('records', 'rb') as file:
+        records = pickle.load(file)
+    pickle_time_end = time.perf_counter()
+    print(f"The loading time for {len(records)} trips in python is: {timedelta(seconds = (pickle_time_end - pickle_time_start))}")
 
 start_time = time.perf_counter()
 
