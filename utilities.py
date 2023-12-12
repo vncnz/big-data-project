@@ -1,6 +1,8 @@
-import re
+import re, psutil
 
 def fileToDict (filename, onlySample=False) -> dict:
+
+  max_ram = 0
 
   with open(filename, 'r') as file:
     
@@ -42,15 +44,22 @@ def fileToDict (filename, onlySample=False) -> dict:
       legend = rows[0].split(',')
       ltables[table]['legend'] = legend
       for row in rows[1:]:
-        record = {}
-        for idx, el in enumerate(row.split(',')):
-          if el == 'NULL': el = None
-          elif el == 'false': el = False
-          elif el == 'true': el = True
-          else: el = eval(el)
-          record[legend[idx]] = el
-        ltables[table]['records'].append(record)
+        ram = psutil.virtual_memory()[2]
+        if ram > max_ram: max_ram = ram
+        if ram < 90:
+          record = {}
+          for idx, el in enumerate(row.split(',')):
+            if el == 'NULL': el = None
+            elif el == 'false': el = False
+            elif el == 'true': el = True
+            else: el = eval(el)
+            record[legend[idx]] = el
+          ltables[table]['records'].append(record)
+        else:
+           print(f"OUT OF MEMORY after {ltables[table]['records']} records")
+           exit(0)
   print()
+  print(f'MAX RAM: {max_ram}')
   return ltables
 
 def produceSeparateRecords (tableData):
