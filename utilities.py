@@ -135,3 +135,10 @@ def groupBy (records, keys):
         if not k in groups: groups[k] = [rec]
         else: groups[k].append(rec)
     return groups
+
+def progressBar(current, total, barLength = 20):
+    percent = float(current) * 100 / total
+    arrow   = '-' * int(percent/100 * barLength - 1) + '>'
+    spaces  = ' ' * (barLength - len(arrow))
+
+    print(percent >= 100 and '  ✅' or '  ⏳', 'Progress: [%s%s] %d %%' % (arrow, spaces, percent), end='\r')
