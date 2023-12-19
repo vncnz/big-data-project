@@ -55,7 +55,7 @@ In questo progetto si immagina l'anagrafica di fermate e linee residenti in una 
 - [x] psg_up: passeggeri saliti alla fermata
 - [x] psg_down: passeggeri scesi alla fermata
 - [ ] creation_timestamp: timestamp di creazione del record
-- [ ] update_timestamp: timestamp di aggiornamento del record
+- [x] update_timestamp: timestamp di aggiornamento del record
 - [x] vehicle_id: id del veicolo che ha effettuato la fermata
 - [x] delay: ritardo rispetto al passaggio previsto
 - [ ] reported: fermata recistrata
