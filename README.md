@@ -42,11 +42,11 @@ Il progetto è realizzato in Python, utilizza Flask per la creazione di un servi
 Siccome InfluxDB nasce per gestire serie temporali e non altro, la maggior parte dei dati richiedono il salvataggio in un database di appoggio che può essere proprio PostgreSQL. Mentre PostgreSQL può essere l'unico database utilizzato per raggiungere l'obiettivo nel caso di InfluxDB si avrà invece la coesistenza dei due database, uno utilizzato per la memorizzazione di tutti i dati non temporali ed uno utilizzato per questi ultimi.
 In questo progetto si immagina l'anagrafica di fermate e linee residenti in una tabella di PostgreSQL dedicata che non viene però implementata perché non interferisca con le query in esame. La struttura del database PostgreSQL da cui sono stati estratti i dati ha le seguenti colonne:
 
-- [x] schedule_id: id della pianificazione attiva
+- [ ] schedule_id: id della pianificazione attiva
 - [x] block_id: id del turno macchina
 - [x] trip_id: id della corsa
-- [x] arrival_time: orario di arrivo previsto
-- [x] real_time: orario di arrivo reale
+- [ ] arrival_time: orario di arrivo previsto
+- [ ] real_time: orario di arrivo reale
 - [x] stop_id: id della fermata servita
 - [ ] stop_sequence: autoincrementale della fermata all'interno del turno macchina
 - [ ] shape_dist_traveled: distanza prevista della fermata dalla partenza della corsa
