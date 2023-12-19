@@ -82,7 +82,8 @@ def produceSeparateRecords (tableData):
                 'block_id': rec['block_id'],
                 'stop_id': rec['stop_id'],
                 'stop_sequence': rec['stop_sequence'],
-                'day_of_service': rec['day_of_service']
+                'day_of_service': rec['day_of_service'],
+                'datetime': rec['update_timestamp']
             }
 
             # Le separo perché in campo arrivano separatamente!
@@ -136,9 +137,13 @@ def groupBy (records, keys):
         else: groups[k].append(rec)
     return groups
 
+last_percent = -1
 def progressBar(current, total, barLength = 20):
-    percent = float(current) * 100 / total
-    arrow   = '-' * int(percent/100 * barLength - 1) + '>'
-    spaces  = ' ' * (barLength - len(arrow))
+    global last_percent
+    percent = int((float(current) * 100 / total) + 0.5)
+    if last_percent != percent:
+      arrow   = '-' * int(percent/100 * barLength - 1) + '>'
+      spaces  = ' ' * (barLength - len(arrow))
 
-    print(percent >= 100 and '  ✅' or '  ⏳', 'Progress: [%s%s] %d %%' % (arrow, spaces, percent), end='\r')
+      print(percent >= 100 and '  ✅' or '  ⏳', 'Progress: [%s%s] %d %%' % (arrow, spaces, percent), end='\r')
+      last_percent = percent
