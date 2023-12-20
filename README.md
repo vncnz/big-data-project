@@ -67,25 +67,26 @@ In questo progetto si immagina l'anagrafica di fermate e linee residenti in una 
 I dati indicati con un check sono stati implementati in questo progetto, gli altri dati sono stati esclusi perché considerati non utili ai fini del confronto tra i database.
 
 ### [Descrizione della base dati postgres]
-Per l'implementazione in PostgreSQL è stata creata una tabella con i dati sopra indicati.
+Per l'implementazione in PostgreSQL è stata creata una tabella con i dati sopra indicati. Per ciascuna stop call sono presenti in un unico record delay, psg_up e psg_down (se esistenti). #TODO: segnare quali colonne sono state indicizzate e quant'altro
+
 ### [Descrizione della base dati influxdb]
 Per l'implementazione in InfluxDB è stato utilizzato un bucket con i seguenti elementi:
 - (_time) timestamp: ora del passaggio o dell'orario previsto
-- (_measurement) measurement: "R" per passaggio reale, "P" per l'orario previsto
+[TODO: ricontrollare e/o eliminare] - (_measurement) measurement: "R" per passaggio reale, "P" per l'orario previsto
 - (tag) schedule_id
 - (tag) block_id
 - (tag) trip_id
 - (tag) stop_id
 - (tag) day_of_service
 - (tag) route_id
-- (_field) "psg_up/psg_down/vehicle_id"
-- (_value) numero di passeggeri saliti e scesi, id mezzo
+- (_field) "psg_up/psg_down/delay"
+- (_value) numero di passeggeri saliti e scesi, ritardo
 
 E' importante ricordare che in InfluxDB solo i tag vengono indicizzati, i valori (_field e _value) non sono indicizzati. Si è scelto quindi di utilizzare il numero di passeggeri saliti/scesi ed il mezzo che ha effettuato la fermata come valori memorizzati ed i vari identificatori della fermata (la fermata fisica, la linea, la corsa, eccetera) come tag. Sono anche quei campi tendenzialmente ripetitivi (una corsa ha molte fermate, da una fermata passano molte corse, eccetera) e questo assicura di non far esplodere la cardinalità della serie anche se essa sarà comunque relativamente alta, in particolare per colpa dello stop_id.
 
 
 ## Riempimento dei dati e prestazioni di inserimento
-[TODO]
+[TODO, inserire anche tempistica di creazione query/point]
 
 ## Estrazione dei dati e prestazioni di select
 [TODO]
