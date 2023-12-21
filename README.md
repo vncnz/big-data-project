@@ -23,7 +23,7 @@ L'obiettivo è la creazione di statistiche che sarebbero utili all'azienda clien
 
 ## Limiti di questa analisi prestazionale
 
-I due database confrontati non differiscono solo nella struttura (relazionale vs buckets) e nell'obiettivo (dati generici vs serie temporali) ma anche nell'architettura di base. Mentre PostgreSQL viene eseguito solitamente come mono-istanza in locale, sulla macchina che ospita anche gli altri servizi o al massimo su una macchina dedicata, InfluxDB nasce come sistema di memorizzazione in cloud ed è fortemente orientato a tale scenario di utilizzo. Per questo progetto, tuttavia, è stata utilizzata una versione installabile in locale per poter confrontare le prestazioni a parità di risorse hardware.
+I due database confrontati non differiscono solo nella struttura (relazionale vs buckets) e nell'obiettivo (dati generici vs serie temporali) ma anche nell'architettura di base. Mentre PostgreSQL viene eseguito solitamente come mono-istanza in locale, sulla macchina che ospita anche gli altri servizi o al massimo su una macchina dedicata, InfluxDB nasce come sistema di memorizzazione in cloud ed è fortemente orientato a tale scenario di utilizzo. Per questo progetto, tuttavia, è stata utilizzata una versione installabile in locale per poter confrontare le prestazioni a parità di risorse hardware ed in un ambiente controllato.
 
 # Parte teorica
 
@@ -33,14 +33,17 @@ InfluxDB è un "timeseries database", cioè un database orientato al salvataggio
 ## Licenza
 ## Use cases
 ## Scalability
+
+
 # Parte pratica
+
 ## [Tecnologie usate]
 
-Il progetto è realizzato in Python, utilizza Flask per la creazione di un servizio web ed apposite librerie per l'esecuzione dei salvataggi e delle interrogazioni.
+Il progetto è realizzato in Python, utilizza Flask per la creazione di un servizio web ed apposite librerie per l'esecuzione dei salvataggi e delle interrogazioni. I dati provengono da un database utilizzato realmente in una città italiana di piccole dimensioni, sono stati esportati tramite la creazione di file sql che sono stati letti da uno script in python e travasati, tramite due script separati, in influxdb ed in postgresql. I due script condividono la maggior parte del codice e differiscono per la sola parte legata allo specifico database di destinazione.
 
 ## Descrizione dell'organizzazione dei dati
-Siccome InfluxDB nasce per gestire serie temporali e non altro, la maggior parte dei dati richiedono il salvataggio in un database di appoggio che può essere proprio PostgreSQL. Mentre PostgreSQL può essere l'unico database utilizzato per raggiungere l'obiettivo nel caso di InfluxDB si avrà invece la coesistenza dei due database, uno utilizzato per la memorizzazione di tutti i dati non temporali ed uno utilizzato per questi ultimi.
-In questo progetto si immagina l'anagrafica di fermate e linee residenti in una tabella di PostgreSQL dedicata che non viene però implementata perché non interferisca con le query in esame. La struttura del database PostgreSQL da cui sono stati estratti i dati ha le seguenti colonne:
+Siccome InfluxDB nasce per gestire serie temporali e non altro, la maggior parte dei dati richiedono il salvataggio in un database di appoggio che può essere proprio PostgreSQL. Mentre PostgreSQL può essere l'unico database utilizzato per raggiungere l'obiettivo nel caso di InfluxDB si avrà invece la coesistenza dei due database, uno utilizzato per la memorizzazione di tutti i dati non temporali ed uno utilizzato per questi ultimi. Non esistono vincoli specifici che impediscono il salvataggio di anagrafiche in InfluxDB ma è un tipo di dati perfetto per un database relazionale e non timeseries-oriented.
+In questo progetto si immagina quindi di avere le anagrafiche di fermate, linee e quant'altro residenti in tabelle PostgreSQL dedicate che non viene però implementate per evitare che ciò interferisca con le query in esame e perché superfluo ai fini dell'analisi. La struttura del database PostgreSQL da cui sono stati estratti i dati ha le seguenti colonne:
 
 - [ ] schedule_id: id della pianificazione attiva
 - [x] block_id: id del turno macchina
@@ -64,11 +67,11 @@ In questo progetto si immagina l'anagrafica di fermate e linee residenti in una 
 - [ ] served: non usato
 - [ ] fake: boolean che indica se la registrazione della fermata è reale o calcolata a posteriori
 
-I dati indicati con un check sono stati implementati in questo progetto, gli altri dati sono stati esclusi perché considerati non utili ai fini del confronto tra i database.
+I dati marcati con un check sono stati implementati in questo progetto e quindi travasati, gli altri dati sono stati esclusi perché considerati non utili ai fini del confronto prestazionale tra i database. Alcuni di questi ultimi sono strettamente legati al funzionamento del sistema di provenienza (ad esempio i flag _served_ e _fake_), allo studio di eventuali bug (ad esempio _creation_timestamp_) e/o a politiche economiche legate al cliente per cui il sistema è stato implementato (i campi _quality_, _shape_dist_traveled_ ed altri).
 
 ### [Descrizione della base dati postgres]
-Per l'implementazione in PostgreSQL è stata creata una tabella con i dati sopra indicati. Per ciascuna stop call sono presenti in un unico record delay, psg_up e psg_down (se esistenti).
-Sono stati creati degli indici per le colonne relative a trip, stop, block, day_of_service, route. #TODO: segnare quali colonne sono state indicizzate e quant'altro
+Per l'implementazione in PostgreSQL è stata creata una tabella con i dati sopra indicati. Per ciascuna stop call [TODO: spiegare cos'è] sono presenti in un unico record delay, psg_up e psg_down (se esistenti).
+Sono stati creati degli indici per le colonne relative a trip, stop, block, day_of_service, route.
 
 ### [Descrizione della base dati influxdb]
 Per l'implementazione in InfluxDB è stato utilizzato un bucket con i seguenti elementi:
@@ -80,14 +83,36 @@ Per l'implementazione in InfluxDB è stato utilizzato un bucket con i seguenti e
 - (tag) stop_id
 - (tag) day_of_service
 - (tag) route_id
-- (_field) "psg_up/psg_down/delay"
-- (_value) numero di passeggeri saliti e scesi, ritardo
+- (_field) "psg_up" (passeggeri saliti) / "psg_down" (passeggeri scesi) / "delay" (ritardo)
+- (_value) numero relativo a _field
 
-E' importante ricordare che in InfluxDB solo i tag vengono indicizzati, i valori (_field e _value) non sono indicizzati. Si è scelto quindi di utilizzare il numero di passeggeri saliti/scesi ed il mezzo che ha effettuato la fermata come valori memorizzati ed i vari identificatori della fermata (la fermata fisica, la linea, la corsa, eccetera) come tag. Sono anche quei campi tendenzialmente ripetitivi (una corsa ha molte fermate, da una fermata passano molte corse, eccetera) e questo assicura di non far esplodere la cardinalità della serie anche se essa sarà comunque relativamente alta, in particolare per colpa dello stop_id.
+E' importante ricordare che in InfluxDB solo i tag vengono indicizzati, i valori (_field e _value) non sono indicizzati. Si è scelto quindi di utilizzare il numero di passeggeri saliti/scesi ed il mezzo che ha effettuato la fermata come valori memorizzati ed i vari identificatori della fermata (la fermata fisica, la linea, la corsa, eccetera) come tag. Questi sono anche quei campi tendenzialmente ripetitivi (una corsa ha molte fermate, da una fermata passano molte corse, eccetera) e questo assicura di non far esplodere la cardinalità della serie temporale, anche se essa sarà comunque relativamente alta in particolare per colpa dell'id fermata.
 
+## Configurazione software/hardware e nota sulle prestazioni
+
+Qualunque dato prestazionale presente in questo documento si riferisce all'esecuzione su una macchina virtuale VirtualBox con 4 core e 6gb di RAM. La CPU fisica è una AMD Ryzen 7 4800U e grazie all'opzione PAE/NX attiva 4 dei suoi core sono esposti direttamente alla VM. Il disco virtuale è del tipo "dynamic allocation storage" e si trova fisicamente su un disco NVME M2 connesso tramite USB3.1. Su macchine o configurazioni differenti le prestazioni possono chiaramente differire ma lo scopo dei tempi qui riportati è fine al confronto tra i due database e non devono essere presi in senso assoluto.
+Il sistema operativo è GNU/Linux, per maggior precisione una distro Arch.
+Il software è scritto in python 3.x, la gestione di influxdb è effettuata tramite la libreria ufficiale influxdb_client mentre per postgres ho usato la libreria psycopg2.
 
 ## Riempimento dei dati e prestazioni di inserimento
 [TODO, inserire anche tempistica di creazione query/point]
+La preparazione dei dati per InfluxDB prevede la creazione, per ogni punto, di un'istanza di una classe fornita dalla libreria, la preparazione di tutti i dati impiega circa 3.5 secondi. La preparazione dei dati per PostgreSQL prevede invece la creazione di query tramite interpolazione di stringhe ed questo invece impiega circa 2 secondi. In entrambi i casi questi tempi sono stati presi senza l'inserimento reale dei dati nel rispettivo database ai fini di capire la loro influenza sulle tempistiche totali misurate ma la creazione nella versione finale del codice avviene contestualmente all'inserimento, record per record, non occupando così un quantitativo di RAM degno di nota.
+La quantità di record da inserire cambia in base al database:
+-  831376 record in postgres
+- 1185486 record in influxdb
+Questo è dovuto al fatto che per ogni passaggio a fermata effettuato possono esistere da uno a tre dati raccolti:
+- ritardo/anticipo
+- passeggeri saliti
+- passeggeri scesi
+In PostgreSQL questi (eventualmente) tre dati vengono inseriti in un unico record mentre in InfluxDB vengono inseriti come tre diversi datapoints. Già in questo vediamo una differenza sostanziale in uno scenario di utilizzo in real time di uno e dell'altro database: con InfluxDB ogni dato che arriva dal campo si trasforma in un punto da inserire, con PostgreSQL ogni dato si trasforma invece in una _insert or update_. L'alternativa, per quanto riguarda PostgreSQL, è scegliere un momento in cui il sistema è scarico e preparare preventivamente tutti i record che dovranno ospitare i dati in arrivo durante la giornata, così da evitare le _insert or update_ ed effettuare solo degli _update_. Naturalmente è possibile strutturare la tabella in PostgreSQL in modo che ospiti una colonna _field_ ed una _value_ assumendo un aspetto più simile al bucket in InfluxDB ma questo sembra meno naturale per un database relazionale.
+
+PostgreSQL --> The written time for 831376 records in postgresql is: 0:01:44.622346 (7946.45 records per second)
+InfluxDB --> The written time for 1185486 records in influxdb is: 0:03:13.563108 (6124.55 records per second)
+
+The batch item wasn't processed successfully because: (400)6 %
+Reason: Bad Request
+HTTP response headers: HTTPHeaderDict({'Content-Type': 'application/json; charset=utf-8', 'X-Influxdb-Build': 'OSS', 'X-Influxdb-Version': '2.7.1', 'X-Platform-Error-Code': 'invalid', 'Date': 'Thu, 21 Dec 2023 22:32:34 GMT', 'Content-Length': '605'})
+HTTP response body: {"code":"invalid","message":"unable to parse 'StopCalls,block_id=603,day_of_service=2023-09-08,route_id=22,stop_id=775,trip_id=2116 psg_up=0i 145809342546': time outside range -9223372036854775806 - 9223372036854775806\nunable to parse 'StopCalls,block_id=603,day_of_service=2023-09-08,route_id=22,stop_id=775,trip_id=2116 psg_down=0i 145809342546': time outside range -9223372036854775806 - 9223372036854775806\nunable to parse 'StopCalls,block_id=603,day_of_service=2023-09-08,route_id=22,stop_id=775,trip_id=2116 delay=282i 145809342546': time outside range -9223372036854775806 - 9223372036854775806"}
 
 ## Estrazione dei dati e prestazioni di select
 [TODO]

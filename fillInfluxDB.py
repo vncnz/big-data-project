@@ -6,9 +6,12 @@ from influxdb_client.client.write_api import SYNCHRONOUS
 
 from utilities import progressBar
 
+# influxd run
+
 pickle_time_start = time.perf_counter()
 with open('records', 'rb') as file:
     records = pickle.load(file)
+records = [x for x in records if x['datetime'] and x['stop_id'] and (x['field'] != 'psg_up' or x['value'] < 200)]
 pickle_time_end = time.perf_counter()
 print(f"The loading time for {len(records)} records in python is: {timedelta(seconds = (pickle_time_end - pickle_time_start))}")
 
@@ -18,7 +21,7 @@ org = 'vncnz'
 bucket = 'bigdata_project'
 pwd = 'bigdata_project'
 erase_all = True
-skip_write = True
+skip_write = False
 
 # client = InfluxDBClient(
 #   url="https://europe-west1-1.gcp.cloud2.influxdata.com",
@@ -32,7 +35,7 @@ client = InfluxDBClient(
 if erase_all:
     print('Erasing all data in bucket...', end='')
     start = "1970-01-01T00:00:00Z"
-    stop = "2021-01-01T00:00:00Z"
+    stop = "2025-01-01T00:00:00Z"
     delete_api = client.delete_api()
     delete_api.delete(start, stop, None, bucket=bucket, org=org) # '_measurement="delay"'
     print('\rErased all data in bucket!      ')
