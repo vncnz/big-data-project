@@ -56,7 +56,7 @@ In questo progetto si immagina l'anagrafica di fermate e linee residenti in una 
 - [x] psg_down: passeggeri scesi alla fermata
 - [ ] creation_timestamp: timestamp di creazione del record
 - [x] update_timestamp: timestamp di aggiornamento del record
-- [x] vehicle_id: id del veicolo che ha effettuato la fermata
+- [ ] vehicle_id: id del veicolo che ha effettuato la fermata
 - [x] delay: ritardo rispetto al passaggio previsto
 - [ ] reported: fermata recistrata
 - [x] route_id: id della linea
@@ -67,7 +67,8 @@ In questo progetto si immagina l'anagrafica di fermate e linee residenti in una 
 I dati indicati con un check sono stati implementati in questo progetto, gli altri dati sono stati esclusi perché considerati non utili ai fini del confronto tra i database.
 
 ### [Descrizione della base dati postgres]
-Per l'implementazione in PostgreSQL è stata creata una tabella con i dati sopra indicati. Per ciascuna stop call sono presenti in un unico record delay, psg_up e psg_down (se esistenti). #TODO: segnare quali colonne sono state indicizzate e quant'altro
+Per l'implementazione in PostgreSQL è stata creata una tabella con i dati sopra indicati. Per ciascuna stop call sono presenti in un unico record delay, psg_up e psg_down (se esistenti).
+Sono stati creati degli indici per le colonne relative a trip, stop, block, day_of_service, route. #TODO: segnare quali colonne sono state indicizzate e quant'altro
 
 ### [Descrizione della base dati influxdb]
 Per l'implementazione in InfluxDB è stato utilizzato un bucket con i seguenti elementi:
