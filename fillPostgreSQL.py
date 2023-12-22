@@ -3,29 +3,16 @@ from datetime import datetime, timedelta
 
 import psycopg2
 
-from utilities import progressBar
+from utilities import countRows, dataGenerator, progressBar
 
 # sudo systemctl start postgresql.service
-
-pickle_time_start = time.perf_counter()
-with open('records', 'rb') as file:
-    records = pickle.load(file)
-records = [x for x in records if x['datetime'] and x['stop_id'] and (x['field'] != 'psg_up' or x['value'] < 200)]
-pickle_time_end = time.perf_counter()
-print(f"The loading time for {len(records)} records in python is: {timedelta(seconds = (pickle_time_end - pickle_time_start))}")
-
 
 host = 'localhost'
 org = 'vncnz'
 bucket = 'bigdata_project'
 pwd = 'bigdata_project'
-erase_all = True
-skip_write = False
-
-# client = InfluxDBClient(
-#   url="https://europe-west1-1.gcp.cloud2.influxdata.com",
-#   token="Taiju5w8TEteVMjU4bt6emM3L0NpgnWAinolzSEYfB4JCVphV9DjebNRvQASWXzKSOqkKO4TvthcB74N1ICCPw=="
-# )
+erase_all = False
+skip_write = True
 
 conn = psycopg2.connect(database='postgres',
                         host=host,
@@ -48,29 +35,24 @@ def recordToInsertQuery (record):
     return f"insert into public.{bucket} (day_of_service, route_id, trip_id, stop_id, block_id, datetime, delay, psg_up, psg_down) \
         values ('{record['day_of_service']}', {record['route_id']}, {record['trip_id']}, {record['stop_id']}, {record['block_id']}, '{record['datetime']}'::timestamp, {record['delay'] or 'NULL'}, {record['psg_up'] or 'NULL'}, {record['psg_down'] or 'NULL'})"
 
-complex_records = {}
-i = 0
-for record in records:
-    k = f"{record['day_of_service']}, {record['route_id']}, {record['trip_id']}, {record['stop_id']}, {record['block_id']}, {record['datetime']}"
-    if not k in complex_records:
-        complex_records[k] = record
-        complex_records[k]['delay'] = None
-        complex_records[k]['psg_up'] = None
-        complex_records[k]['psg_down'] = None
-    complex_records[k][record['field']] = record['value']
-
-records = complex_records.values()
-
 write_time_start = time.perf_counter()
 
-for record in records:
+stopcalls_path = "rpt_stop_details_202312221216.sql"
+stops_path = "sch_gtfs_stops_202312071735.sql"
+total_rows = countRows(stopcalls_path)
+
+i = 0
+for record in dataGenerator(stopcalls_path, stops_path, False):
     query = recordToInsertQuery(record)
     if not skip_write: cursor.execute(query)
     i += 1
-    progressBar(i, len(records), 40)
+    progressBar(i, total_rows, 40)
 print('')
 
 write_time_end = time.perf_counter()
+
+conn.close()
+
 diff = write_time_end - write_time_start
 # print(f"The written time for {len(records)} records in influxdb is: {timedelta(seconds = diff)}")
-print(f"The written time for {len(records)} records in postgresql is: {timedelta(seconds = diff)} ({(len(records) / diff):.2f} records per second)")
+print(f"The written time for {i} records in postgresql is: {timedelta(seconds = diff)} ({(i / diff):.2f} records per second)")

@@ -4,24 +4,24 @@ from datetime import datetime, timedelta
 from influxdb_client import InfluxDBClient, Point, WritePrecision
 from influxdb_client.client.write_api import SYNCHRONOUS
 
-from utilities import progressBar
+from utilities import countRows, dataGenerator, progressBar, separateRecords
 
 # influxd run
+import functools
+print = functools.partial(print, flush=True)
 
-pickle_time_start = time.perf_counter()
-with open('records', 'rb') as file:
-    records = pickle.load(file)
-records = [x for x in records if x['datetime'] and x['stop_id'] and (x['field'] != 'psg_up' or x['value'] < 200)]
-pickle_time_end = time.perf_counter()
-print(f"The loading time for {len(records)} records in python is: {timedelta(seconds = (pickle_time_end - pickle_time_start))}")
+# pickle_time_start = time.perf_counter()
+# with open('records', 'rb') as file:
+#     records = pickle.load(file)
+# records = [x for x in records if x['datetime'] and x['stop_id'] and (x['field'] == 'delay' or x['value'] < 200) and (x['field'] != 'delay' or x['value'] < 60*60*2)]
+# pickle_time_end = time.perf_counter()
+# print(f"The loading time for {len(records)} records in python is: {timedelta(seconds = (pickle_time_end - pickle_time_start))}")
 
-
-host = 'http://localhost:8086'
 org = 'vncnz'
 bucket = 'bigdata_project'
 pwd = 'bigdata_project'
-erase_all = True
-skip_write = False
+erase_all = False
+skip_write = True
 
 # client = InfluxDBClient(
 #   url="https://europe-west1-1.gcp.cloud2.influxdata.com",
@@ -31,11 +31,12 @@ client = InfluxDBClient(
     url="http://localhost:8086",
     token='w1vABiIPJ28ixch-pz-DyDDjTlnOpLsxSY8yrUT5dvMi9Xn_wsnDUAU-E4oyTVFhfVHGtqskQRAUm_6LHbZQYA=='
 )
+client.api_client.configuration.timeout = 30*1000
 
 if erase_all:
     print('Erasing all data in bucket...', end='')
-    start = "1970-01-01T00:00:00Z"
-    stop = "2025-01-01T00:00:00Z"
+    start = "2023-01-01T00:00:00Z"
+    stop = "2025-10-02T00:00:00Z"
     delete_api = client.delete_api()
     delete_api.delete(start, stop, None, bucket=bucket, org=org) # '_measurement="delay"'
     print('\rErased all data in bucket!      ')
@@ -60,16 +61,23 @@ def recordToGenericPoint (record):
 
 write_time_start = time.perf_counter()
 
+stopcalls_path = "rpt_stop_details_202312221216.sql"
+stops_path = "sch_gtfs_stops_202312071735.sql"
+total_rows = countRows(stopcalls_path)
+
 i = 0
-for record in records:
-    point = recordToGenericPoint(record).field(record['field'], record['value']) # .field("delay", record['delay'])
-    if not skip_write: write_api.write(bucket, org, point)
+ii = 0
+for fullrec in dataGenerator(stopcalls_path, stops_path, False):
+    for record in separateRecords(fullrec):
+        point = recordToGenericPoint(record).field(record['field'], record['value']).measurement(record['field']) # .field("delay", record['delay'])
+        if not skip_write: write_api.write(bucket, org, point)
+        ii += 1
     # print(point)
     i += 1
-    progressBar(i, len(records), 40)
+    progressBar(i, total_rows, 40)
 print('')
 
 write_time_end = time.perf_counter()
 diff = write_time_end - write_time_start
 # print(f"The written time for {len(records)} records in influxdb is: {timedelta(seconds = diff)}")
-print(f"The written time for {len(records)} records in influxdb is: {timedelta(seconds = diff)} ({(len(records) / diff):.2f} records per second)")
+print(f"The written time for {ii} records in influxdb is: {timedelta(seconds = diff)} ({(ii / diff):.2f} records per second)")

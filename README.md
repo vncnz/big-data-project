@@ -95,24 +95,43 @@ Il sistema operativo è GNU/Linux, per maggior precisione una distro Arch.
 Il software è scritto in python 3.x, la gestione di influxdb è effettuata tramite la libreria ufficiale influxdb_client mentre per postgres ho usato la libreria psycopg2.
 
 ## Riempimento dei dati e prestazioni di inserimento
-[TODO, inserire anche tempistica di creazione query/point]
-La preparazione dei dati per InfluxDB prevede la creazione, per ogni punto, di un'istanza di una classe fornita dalla libreria, la preparazione di tutti i dati impiega circa 3.5 secondi. La preparazione dei dati per PostgreSQL prevede invece la creazione di query tramite interpolazione di stringhe ed questo invece impiega circa 2 secondi. In entrambi i casi questi tempi sono stati presi senza l'inserimento reale dei dati nel rispettivo database ai fini di capire la loro influenza sulle tempistiche totali misurate ma la creazione nella versione finale del codice avviene contestualmente all'inserimento, record per record, non occupando così un quantitativo di RAM degno di nota.
+Per entrambi i database c'è la necessità di leggere i dati dai file sql per effettuare poi l'inserimento nel database di destinazione. Siccome i file da cui i dati provengono sono di grandi dimensioni (giga) il caricamento da file e la scrittura nel database devono avvenire di pari passo.
+La preparazione dei dati per InfluxDB prevede la creazione, per ogni punto, di un'istanza di una classe fornita dalla libreria, la lettura e preparazione di tutti i dati impiega circa un minuto e venti secondi. La preparazione dei dati per PostgreSQL prevede invece la creazione di query tramite interpolazione di stringhe ed questo invece impiega circa un minuto e dieci secondi. In entrambi i casi questi tempi sono stati presi senza l'inserimento reale dei dati nel rispettivo database ai fini di capire la loro influenza sulle tempistiche totali misurate ma la creazione nella versione finale del codice avviene contestualmente all'inserimento, record per record, non occupando così un quantitativo di RAM degno di nota.
 La quantità di record da inserire cambia in base al database:
--  831376 record in postgres
-- 1185486 record in influxdb
+- 1490706 record in postgres
+- 2067523 record in influxdb
 Questo è dovuto al fatto che per ogni passaggio a fermata effettuato possono esistere da uno a tre dati raccolti:
 - ritardo/anticipo
 - passeggeri saliti
 - passeggeri scesi
 In PostgreSQL questi (eventualmente) tre dati vengono inseriti in un unico record mentre in InfluxDB vengono inseriti come tre diversi datapoints. Già in questo vediamo una differenza sostanziale in uno scenario di utilizzo in real time di uno e dell'altro database: con InfluxDB ogni dato che arriva dal campo si trasforma in un punto da inserire, con PostgreSQL ogni dato si trasforma invece in una _insert or update_. L'alternativa, per quanto riguarda PostgreSQL, è scegliere un momento in cui il sistema è scarico e preparare preventivamente tutti i record che dovranno ospitare i dati in arrivo durante la giornata, così da evitare le _insert or update_ ed effettuare solo degli _update_. Naturalmente è possibile strutturare la tabella in PostgreSQL in modo che ospiti una colonna _field_ ed una _value_ assumendo un aspetto più simile al bucket in InfluxDB ma questo sembra meno naturale per un database relazionale.
 
-PostgreSQL --> The written time for 831376 records in postgresql is: 0:01:44.622346 (7946.45 records per second)
-InfluxDB --> The written time for 1185486 records in influxdb is: 0:03:13.563108 (6124.55 records per second)
-
+```
+[TODO: rimuovere]
 The batch item wasn't processed successfully because: (400)6 %
 Reason: Bad Request
 HTTP response headers: HTTPHeaderDict({'Content-Type': 'application/json; charset=utf-8', 'X-Influxdb-Build': 'OSS', 'X-Influxdb-Version': '2.7.1', 'X-Platform-Error-Code': 'invalid', 'Date': 'Thu, 21 Dec 2023 22:32:34 GMT', 'Content-Length': '605'})
 HTTP response body: {"code":"invalid","message":"unable to parse 'StopCalls,block_id=603,day_of_service=2023-09-08,route_id=22,stop_id=775,trip_id=2116 psg_up=0i 145809342546': time outside range -9223372036854775806 - 9223372036854775806\nunable to parse 'StopCalls,block_id=603,day_of_service=2023-09-08,route_id=22,stop_id=775,trip_id=2116 psg_down=0i 145809342546': time outside range -9223372036854775806 - 9223372036854775806\nunable to parse 'StopCalls,block_id=603,day_of_service=2023-09-08,route_id=22,stop_id=775,trip_id=2116 delay=282i 145809342546': time outside range -9223372036854775806 - 9223372036854775806"}
+```
+
+```
+[TODO: rimuovere]
+[vncnz@Julie big-data-project]$ /bin/python /media/sf_NNNNNNNNNNNNNNNNNN/big-data-project/fillInfluxDB.py
+File sch_gtfs_stops_202312071735.sql letto, sono 1053 comandi
+Sto parsando la riga 1053/1053 (100%)
+MAX RAM: 31.4
+  ⏳ Progress: [---------------------->                 ] 58 %
+The written time for 2067523 records in influxdb is: 0:01:18.222239 (26431.40 records per second)
+```
+
+```
+[vncnz@Julie big-data-project]$ /bin/python /media/sf_NNNNNNNNNNNNNNNNNN/big-data-project/fillPostgreSQL.py
+File sch_gtfs_stops_202312071735.sql letto, sono 1053 comandi
+Sto parsando la riga 1053/1053 (100%)
+MAX RAM: 30.7
+  ⏳ Progress: [---------------------->                 ] 58 %
+The written time for 1490706 records in postgresql is: 0:01:08.862313 (21647.63 records per second)
+```
 
 ## Estrazione dei dati e prestazioni di select
 [TODO]
