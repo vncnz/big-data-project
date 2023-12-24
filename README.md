@@ -106,6 +106,15 @@ Questo è dovuto al fatto che per ogni passaggio a fermata effettuato possono es
 - passeggeri scesi
 In PostgreSQL questi (eventualmente) tre dati vengono inseriti in un unico record mentre in InfluxDB vengono inseriti come tre diversi datapoints. Già in questo vediamo una differenza sostanziale in uno scenario di utilizzo in real time di uno e dell'altro database: con InfluxDB ogni dato che arriva dal campo si trasforma in un punto da inserire, con PostgreSQL ogni dato si trasforma invece in una _insert or update_. L'alternativa, per quanto riguarda PostgreSQL, è scegliere un momento in cui il sistema è scarico e preparare preventivamente tutti i record che dovranno ospitare i dati in arrivo durante la giornata, così da evitare le _insert or update_ ed effettuare solo degli _update_. Naturalmente è possibile strutturare la tabella in PostgreSQL in modo che ospiti una colonna _field_ ed una _value_ assumendo un aspetto più simile al bucket in InfluxDB ma questo sembra meno naturale per un database relazionale.
 
+
+The written time for 2067523 records in influxdb is: 0:02:08.089249 (16141.27 records per second)
+The written time for 1490706 records in postgresql is: 0:01:10.859296 (21037.55 records per second)
+
+The written time for 2067523 records in influxdb is: 0:08:16.944981 (4160.47 records per second) <- vero?
+The written time for 1490706 records in postgresql is: 0:31:51.030815 (780.05 records per second)
+
+
+
 ```
 [TODO: rimuovere]
 The batch item wasn't processed successfully because: (400)6 %
