@@ -21,7 +21,7 @@ org = 'vncnz'
 bucket = 'bigdata_project'
 pwd = 'bigdata_project'
 erase_all = False
-skip_write = True
+skip_write = False
 
 # client = InfluxDBClient(
 #   url="https://europe-west1-1.gcp.cloud2.influxdata.com",
@@ -51,7 +51,7 @@ query_api = client.query_api()
 # records = records[:1000]
 
 def recordToGenericPoint (record):
-    return Point("StopCalls") \
+    return Point(record['field']) \
         .tag("day_of_service", record['day_of_service']) \
         .tag("route_id", record['route_id']) \
         .tag("trip_id", record['trip_id']) \
@@ -69,7 +69,7 @@ i = 0
 ii = 0
 for fullrec in dataGenerator(stopcalls_path, stops_path, False):
     for record in separateRecords(fullrec):
-        point = recordToGenericPoint(record).field(record['field'], record['value']).measurement(record['field']) # .field("delay", record['delay'])
+        point = recordToGenericPoint(record).field(record['field'], record['value']) # .field("delay", record['delay'])
         if not skip_write: write_api.write(bucket, org, point)
         ii += 1
     # print(point)
