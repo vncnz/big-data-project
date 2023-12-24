@@ -12,7 +12,7 @@ org = 'vncnz'
 bucket = 'bigdata_project'
 pwd = 'bigdata_project'
 erase_all = False
-skip_write = True
+skip_write = False
 
 conn = psycopg2.connect(database='postgres',
                         host=host,
@@ -33,7 +33,7 @@ if erase_all:
 
 def recordToInsertQuery (record):
     return f"insert into public.{bucket} (day_of_service, route_id, trip_id, stop_id, block_id, datetime, delay, psg_up, psg_down) \
-        values ('{record['day_of_service']}', {record['route_id']}, {record['trip_id']}, {record['stop_id']}, {record['block_id']}, '{record['datetime']}'::timestamp, {record['delay'] or 'NULL'}, {record['psg_up'] or 'NULL'}, {record['psg_down'] or 'NULL'})"
+        values ('{record['day_of_service']}', {record['route_id']}, {record['trip_id']}, {record['stop_id']}, {record['block_id']}, '{record['datetime']}'::timestamp, {record['delay'] or 'NULL'}, {record['psg_up'] or 'NULL'}, {record['psg_down'] or 'NULL'});"
 
 write_time_start = time.perf_counter()
 
@@ -44,7 +44,9 @@ total_rows = countRows(stopcalls_path)
 i = 0
 for record in dataGenerator(stopcalls_path, stops_path, False):
     query = recordToInsertQuery(record)
-    if not skip_write: cursor.execute(query)
+    if not skip_write:
+        cursor.execute(query)
+        conn.commit()
     i += 1
     progressBar(i, total_rows, 40)
 print('')
