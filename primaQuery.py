@@ -21,18 +21,18 @@ query_api = client.query_api()
 query = '''
 import "strings"
 
-from2019 = from(bucket:"bigdata_project")
-|> range(start: 2023-10-01T00:00:00Z, stop: 2023-11-30T23:59:59Z) //-3y)
-|> filter(fn:(r) => r._measurement == "delay")
-|> keep(columns: ["_time", "_value", "delay"])
-|> aggregateWindow(
-  every: 1d,
-  fn: count,
-  column: "_value",
-  timeSrc: "_start",
-  timeDst: "_time",
-  createEmpty: true
-)
+from(bucket:"bigdata_project")
+|> range(start: 2020-09-11T00:00:00Z, stop: 2020-09-15T23:59:59Z) //-3y)
+// |> filter(fn:(r) => r._measurement == "delay")
+// |> keep(columns: ["_time", "_value"])
+// |> aggregateWindow(
+//   every: 1d,
+//   fn: count,
+//   column: "_value",
+//   timeSrc: "_start",
+//   timeDst: "_time",
+//   createEmpty: true
+// )
 // |> duplicate(column: "_time", as: "otm") solo per debug
 // |> map(fn: (r) => ({r with
 //         dayofyear: strings.substring(v: string(v:r._time), start: 5, end: 10)
@@ -45,10 +45,10 @@ from2019 = from(bucket:"bigdata_project")
 //   tables: { fr19: from2019, fr20: from2020 },
 //   on: ["dayofyear", "poi"]
 // )
-|> keep(columns: ["_time", "_value_fr19", "_value_fr20", "dayofyear", "poi"]) // "otm_fr19", "otm_fr20" solo per debug
+// |> keep(columns: ["_time", "_value_fr19", "_value_fr20", "dayofyear", "poi"]) // "otm_fr19", "otm_fr20" solo per debug
 '''
 
-query = '''
+queryyy = '''
 import "strings"
 
 manageData = (tables=<-) =>
@@ -86,12 +86,7 @@ join(
 
 
 
-
-
-
-
-
-query = '''
+queryyyy = '''
 import "strings"
 
 from(bucket:"veronacard")
@@ -120,65 +115,47 @@ from(bucket:"veronacard")
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 results = query_api.query(query=query, org=org)
 lst = []
 
 cols = []
 
 def fltr(lst):
-    return [x for x in lst if x.label not in ['result', '_start', '_stop', '_field', '_measurement']]
+    return [x for x in lst] #if x.label not in ['result', '_start', '_stop', '_field', '_measurement']]
 
-# for table in results:
-#     tablecols = fltr(table.get_group_key())
-#     print('\nTable ', ', '.join(map(lambda c: '%s=%s' % (c.label, table.records[0][c.label]), tablecols)))
-#     cols = fltr(table.columns)
-#     for col in cols:
-#         print(col.label.rjust(18), end='  ')
-#     print('')
-#     for record in table.records:
-#         for col in cols:
-#             dt = record.values.get(col.label)
-#             if col.data_type == 'dateTime:RFC3339':
-#                 dt = dt.strftime('%Y%m%d@%H:%M:%S')
-#             print('%18s' % dt, end='  ')
-#         print('')
-#         # lst.append((record.get_time().isoformat(), str(record.values.get('elapsed')).rjust(8), record.values.get('card'), record.values.get('poi'), record.values.get('dispositivo')))
+for table in results:
+    tablecols = fltr(table.get_group_key())
+    print('\nTable ', ', '.join(map(lambda c: '%s=%s' % (c.label, table.records[0][c.label]), tablecols)))
+    cols = fltr(table.columns)
+    for col in cols:
+        print(col.label.rjust(18), end='  ')
+    print('')
+    for record in table.records:
+        for col in cols:
+            dt = record.values.get(col.label)
+            if col.data_type == 'dateTime:RFC3339':
+                dt = dt.strftime('%Y%m%d@%H:%M:%S')
+            print('%18s' % dt, end='  ')
+        print('')
+        # lst.append((record.get_time().isoformat(), str(record.values.get('elapsed')).rjust(8), record.values.get('card'), record.values.get('poi'), record.values.get('dispositivo')))
 
-# # ocio, comportamento particolare: se ci sono più valori vengono restituiti più record (tm e card nel mio db di test)
+# ocio, comportamento particolare: se ci sono più valori vengono restituiti più record (tm e card nel mio db di test)
 
-# # for el in lst:
-# #    print(el)
-
-# diz = {}
 # for el in lst:
-#     if not el[2] in diz:
-#         diz[el[2]] = []
-#     diz[el[2]].append(el)
+#    print(el)
 
-# for cardlst in diz.values():
-#     for el in cardlst:
-#         print(el)
-#     print('')
+diz = {}
+for el in lst:
+    if not el[2] in diz:
+        diz[el[2]] = []
+    diz[el[2]].append(el)
 
+for cardlst in diz.values():
+    for el in cardlst:
+        print(el)
+    print('')
 
+exit(0)
 
 print('Query done. Starting plot...')
 
