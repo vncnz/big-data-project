@@ -121,10 +121,12 @@ The written time for 1490706 records in postgresql is: 0:31:51.030815 (780.05 re
 
 ## Estrazione dei dati e prestazioni di select
 
-### Ritardo medio fermata (InfluxDB)
+## Ritardo medio fermata
 La prima query per testare e confrontare le prestazioni tra i due database in esame riguarda il calcolo del ritardo medio per ciascuna corsa in ciascuna fermata in un certo periodo di tempo.
 
 Questa query è stata creata in due versioni diverse e lanciata in entrambe le versioni su periodi di uno, tre e sei mesi. Le due versioni differiscono tra loro per l'assenza o la presenza di un raggruppamento su base mensile.
+
+### InfluxDB
 
 I tempi perché il processo in Python ottenesse la lista completa di risultati sono i seguenti, espressi nel formato h:mm:ss.sss :
 
@@ -135,8 +137,7 @@ I tempi perché il processo in Python ottenesse la lista completa di risultati s
 
 Si può notare come il raggruppamento aumenti il tempo in maniera nient'affatto trascurabile, anche nel caso i risultati rientrino tutti in un'unica finestra.
 
-
-```
+``` influxdb (REMOVE ME)
 Query executed in : 0:00:07.370876 seconds --> 1 mese senza raggruppamento
 Query executed in : 0:00:18.962651 seconds --> 1 mese e raggruppato per mese
 
@@ -145,4 +146,26 @@ Query executed in : 0:00:41.957013 seconds --> 3 mesi e raggruppato per mese
 
 Query executed in : 0:01:09.479471 seconds --> 6 mesi senza raggruppamento
 Query executed in : 0:02:21.480946 seconds --> 6 mesi e raggruppato per mese
+```
+
+### PostgreSQL
+
+I tempi perché il processo in Python ottenesse la lista completa di risultati sono i seguenti, espressi nel formato h:mm:ss.sss :
+
+|Raggruppamento|Un mese       |Tre mesi      |Sei mesi      |
+|--------------|--------------|--------------|--------------|
+|Senza         |0:00:00.369832|0:00:00.472875|0:00:01.141519|
+|Con           |0:00:00.564010|0:00:00.640163|0:00:01.854010|
+
+Anche in questo caso si può notare come il raggruppamento aumenti il tempo in maniera non trascurabile, anche nel caso i risultati rientrino tutti in un'unica finestra. Con PostgreSQL, tuttavia, i tempi sono migliori di un ordine di grandezza rispetto ad InfluxDB.
+
+``` PostgreSQL (REMOVE ME)
+Query executed in : 0:00:00.369832 seconds --> 1 mese senza raggruppamento
+Query executed in : 0:00:00.564010 seconds --> 1 mese e raggruppato per mese
+
+Query executed in : 0:00:00.472875 seconds --> 3 mesi senza raggruppamento
+Query executed in : 0:00:00.640163 seconds --> 3 mesi e raggruppato per mese
+
+Query executed in : 0:00:01.141519 seconds --> 6 mesi senza raggruppamento
+Query executed in : 0:00:01.854010 seconds --> 6 mesi e raggruppato per mese
 ```
