@@ -18,18 +18,18 @@ client = InfluxDBClient(
 
 # write_api = client.write_api()
 query_api = client.query_api()
-
+client.api_client.configuration.timeout = 60*1000
 
 query = '''
 import "strings"
 
 from(bucket:"bigdata_project")
-|> range(start: 2020-09-11T00:00:00Z, stop: 2020-12-31T23:59:59Z) //-3y)
+|> range(start: 2020-09-11T00:00:00Z, stop: 2020-10-11T23:59:59Z) //-3y)
 |> filter(fn:(r) => r._measurement == "delay")
 // |> drop(columns: ["_start", "_stop"])
 |> keep(columns: ["_time", "route_id", "trip_id", "stop_id", "_value"])
 |> group(columns: ["route_id", "trip_id", "stop_id"])
-|> aggregateWindow(every: 1mo, fn: mean)
+// |> aggregateWindow(every: 1mo, fn: mean)
 |> group()
 
 // |> duplicate(column: "_time", as: "otm") solo per debug
@@ -48,11 +48,23 @@ lst = []
 
 cols = []
 
-def printResultTables(results):
+def countResults(results):
+    t = 0
+    c = 0
+    r = 0
+
+    for table in results:
+        t += 1
+        c = len(table.get_group_key())
+        r += len(table.records)
+    
+    return { 'results': r, 'cols': c, 'tables': t }
+
+def printResultTables(results, max_tables, max_records):
     def fltr(lst):
         return [x for x in lst] #if x.label not in ['result', '_start', '_stop', '_field', '_measurement']]
 
-    for table in results:
+    for table in results[:max_tables]:
         tablecols = fltr(table.get_group_key())
         print('\nTable ', ', '.join(map(lambda c: '%s=%s' % (c.label, table.records[0][c.label]), tablecols)))
         cols = fltr(table.columns)
@@ -60,7 +72,7 @@ def printResultTables(results):
             l = col.label in ['_time', '_stop', '_start'] and 18 or 10
             print(col.label.rjust(l), end='  ')
         print('')
-        for record in table.records:
+        for record in table.records[:max_records]:
             for col in cols:
                 dt = record.values.get(col.label)
                 if col.data_type == 'dateTime:RFC3339':
@@ -72,7 +84,8 @@ def printResultTables(results):
             print('')
             # lst.append((record.get_time().isoformat(), str(record.values.get('elapsed')).rjust(8), record.values.get('card'), record.values.get('poi'), record.values.get('dispositivo')))
 
-#printResultTables(results)
+printResultTables(results, 5, 5)
+print(countResults(results))
 print(f"Query executed in : {timedelta(seconds = diff)} seconds")
 
 exit(0)

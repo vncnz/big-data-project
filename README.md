@@ -121,10 +121,28 @@ The written time for 1490706 records in postgresql is: 0:31:51.030815 (780.05 re
 
 ## Estrazione dei dati e prestazioni di select
 
-### primaQuery [TODO: rinominare]
-[TODO: risistemare] primaQuery viene eseguita in 13 secondi senza aggregateWindow ed in 26 con aggregateWindow.
+### Ritardo medio fermata (InfluxDB)
+La prima query per testare e confrontare le prestazioni tra i due database in esame riguarda il calcolo del ritardo medio per ciascuna corsa in ciascuna fermata in un certo periodo di tempo.
+
+Questa query è stata creata in due versioni diverse e lanciata in entrambe le versioni su periodi di uno, tre e sei mesi. Le due versioni differiscono tra loro per l'assenza o la presenza di un raggruppamento su base mensile.
+
+I tempi perché il processo in Python ottenesse la lista completa di risultati sono i seguenti, espressi nel formato h:mm:ss.sss :
+
+|Raggruppamento|Un mese       |Tre mesi      |Sei mesi      |
+|--------------|--------------|--------------|--------------|
+|Senza         |0:00:07.370876|0:00:12.338076|0:01:09.479471|
+|Con           |0:00:18.962651|0:00:41.957013|0:02:21.480946|
+
+Si può notare come il raggruppamento aumenti il tempo in maniera nient'affatto trascurabile, anche nel caso i risultati rientrino tutti in un'unica finestra.
+
 
 ```
-Query executed in : 0:00:12.981277 seconds
-Query executed in : 0:00:25.722012 seconds
+Query executed in : 0:00:07.370876 seconds --> 1 mese senza raggruppamento
+Query executed in : 0:00:18.962651 seconds --> 1 mese e raggruppato per mese
+
+Query executed in : 0:00:12.338076 seconds --> 3 mesi senza raggruppamento
+Query executed in : 0:00:41.957013 seconds --> 3 mesi e raggruppato per mese
+
+Query executed in : 0:01:09.479471 seconds --> 6 mesi senza raggruppamento
+Query executed in : 0:02:21.480946 seconds --> 6 mesi e raggruppato per mese
 ```
