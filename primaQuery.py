@@ -4,6 +4,8 @@
 # from datetime import datetime
 
 from influxdb_client import InfluxDBClient #, Point, WritePrecision
+import time
+from datetime import timedelta
 # from influxdb_client.client.write_api import SYNCHRONOUS
 
 org = 'vncnz'
@@ -22,8 +24,15 @@ query = '''
 import "strings"
 
 from(bucket:"bigdata_project")
-|> range(start: 2020-09-11T00:00:00Z, stop: 2020-09-15T23:59:59Z) //-3y)
-// |> filter(fn:(r) => r._measurement == "delay")
+|> range(start: 2020-09-11T00:00:00Z, stop: 2020-10-17T23:59:59Z) //-3y)
+|> filter(fn:(r) => r._measurement == "delay")
+// |> drop(columns: ["_start", "_stop"])
+|> keep(columns: ["_time", "route_id", "trip_id", "stop_id", "_value"])
+|> group(columns: ["route_id", "trip_id", "stop_id"])
+// |> aggregateWindow(every: 1mo, fn: mean)
+|> group()
+
+// 
 // |> keep(columns: ["_time", "_value"])
 // |> aggregateWindow(
 //   every: 1d,
@@ -114,33 +123,43 @@ from(bucket:"veronacard")
 '''
 
 
-
+write_time_start = time.perf_counter()
 results = query_api.query(query=query, org=org)
+write_time_end = time.perf_counter()
+diff = write_time_end - write_time_start
+
 lst = []
 
 cols = []
 
-def fltr(lst):
-    return [x for x in lst] #if x.label not in ['result', '_start', '_stop', '_field', '_measurement']]
+def printResultTables(results):
+    def fltr(lst):
+        return [x for x in lst] #if x.label not in ['result', '_start', '_stop', '_field', '_measurement']]
 
-for table in results:
-    tablecols = fltr(table.get_group_key())
-    print('\nTable ', ', '.join(map(lambda c: '%s=%s' % (c.label, table.records[0][c.label]), tablecols)))
-    cols = fltr(table.columns)
-    for col in cols:
-        print(col.label.rjust(18), end='  ')
-    print('')
-    for record in table.records:
+    for table in results:
+        tablecols = fltr(table.get_group_key())
+        print('\nTable ', ', '.join(map(lambda c: '%s=%s' % (c.label, table.records[0][c.label]), tablecols)))
+        cols = fltr(table.columns)
         for col in cols:
-            dt = record.values.get(col.label)
-            if col.data_type == 'dateTime:RFC3339':
-                dt = dt.strftime('%Y%m%d@%H:%M:%S')
-            print('%18s' % dt, end='  ')
+            l = col.label in ['_time', '_stop', '_start'] and 18 or 10
+            print(col.label.rjust(l), end='  ')
         print('')
-        # lst.append((record.get_time().isoformat(), str(record.values.get('elapsed')).rjust(8), record.values.get('card'), record.values.get('poi'), record.values.get('dispositivo')))
+        for record in table.records:
+            for col in cols:
+                dt = record.values.get(col.label)
+                if col.data_type == 'dateTime:RFC3339':
+                    dt = dt.strftime('%Y%m%d@%H:%M:%S')
+                if col.label in ['_time', '_stop', '_start']:
+                    print('%18s' % dt, end='  ')
+                else:
+                    print('%10s' % dt, end='  ')
+            print('')
+            # lst.append((record.get_time().isoformat(), str(record.values.get('elapsed')).rjust(8), record.values.get('card'), record.values.get('poi'), record.values.get('dispositivo')))
 
-# ocio, comportamento particolare: se ci sono più valori vengono restituiti più record (tm e card nel mio db di test)
+printResultTables(results)
+print(f"Query executed in : {timedelta(seconds = diff)} seconds")
 
+exit(0)
 # for el in lst:
 #    print(el)
 
