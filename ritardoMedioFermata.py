@@ -24,104 +24,20 @@ query = '''
 import "strings"
 
 from(bucket:"bigdata_project")
-|> range(start: 2020-09-11T00:00:00Z, stop: 2020-10-17T23:59:59Z) //-3y)
+|> range(start: 2020-09-11T00:00:00Z, stop: 2020-12-31T23:59:59Z) //-3y)
 |> filter(fn:(r) => r._measurement == "delay")
 // |> drop(columns: ["_start", "_stop"])
 |> keep(columns: ["_time", "route_id", "trip_id", "stop_id", "_value"])
 |> group(columns: ["route_id", "trip_id", "stop_id"])
-// |> aggregateWindow(every: 1mo, fn: mean)
+|> aggregateWindow(every: 1mo, fn: mean)
 |> group()
 
-// 
-// |> keep(columns: ["_time", "_value"])
-// |> aggregateWindow(
-//   every: 1d,
-//   fn: count,
-//   column: "_value",
-//   timeSrc: "_start",
-//   timeDst: "_time",
-//   createEmpty: true
-// )
 // |> duplicate(column: "_time", as: "otm") solo per debug
 // |> map(fn: (r) => ({r with
 //         dayofyear: strings.substring(v: string(v:r._time), start: 5, end: 10)
 //     })
 // )
-
-// |> timeShift(duration: -1y)
-
-// join(
-//   tables: { fr19: from2019, fr20: from2020 },
-//   on: ["dayofyear", "poi"]
-// )
-// |> keep(columns: ["_time", "_value_fr19", "_value_fr20", "dayofyear", "poi"]) // "otm_fr19", "otm_fr20" solo per debug
 '''
-
-queryyy = '''
-import "strings"
-
-manageData = (tables=<-) =>
-  tables
-    |> filter(fn:(r) => r._measurement == "swipes")
-    |> keep(columns: ["_time", "_value", "poi"])
-    |> aggregateWindow(
-        every: 1d,
-        fn: count,
-        column: "_value",
-        timeSrc: "_start",
-        timeDst: "_time",
-        createEmpty: true
-    )
-    // |> duplicate(column: "_time", as: "otm") solo per debug
-    |> map(fn: (r) => ({r with
-            dayofyear: strings.substring(v: string(v:r._time), start: 5, end: 10)
-        })
-    )
-
-from2019 = from(bucket:"veronacard")
-|> range(start: 2019-01-01T00:00:00Z, stop: 2019-12-31T23:59:59Z) //-3y)
-|> manageData()
-
-from2020 = from(bucket:"veronacard")
-|> range(start: 2020-01-01T00:00:00Z, stop: 2020-12-31T23:59:59Z) //-3y)
-|> manageData()
-
-join(
-  tables: { fr19: from2019, fr20: from2020 },
-  on: ["dayofyear", "poi"]
-)
-|> keep(columns: ["_time", "_value_fr19", "_value_fr20", "dayofyear", "poi"]) // "otm_fr19", "otm_fr20" solo per debug
-'''
-
-
-
-queryyyy = '''
-import "strings"
-
-from(bucket:"veronacard")
-|> range(start: 2019-01-01T00:00:00Z, stop: 2020-12-31T23:59:59Z)
-|> filter(fn:(r) => r._measurement == "swipes")
-|> keep(columns: ["_time", "_value", "poi"])
-|> aggregateWindow(
-    every: 1d,
-    fn: count,
-    column: "_value",
-    timeDst: "_time",
-    createEmpty: true
-)
-// |> group(columns:["poi"])
-|> map(fn: (r) => ({r with
-    dayofyear: strings.substring(v: string(v:r._time), start: 5, end: 10),
-    year: strings.substring(v: string(v:r._time), start: 0, end: 4)
-  })
-)
-|> pivot(
-  rowKey:["dayofyear", "poi"],
-  columnKey: ["year"],
-  valueColumn: "_value"
-)
-'''
-
 
 write_time_start = time.perf_counter()
 results = query_api.query(query=query, org=org)
@@ -156,7 +72,7 @@ def printResultTables(results):
             print('')
             # lst.append((record.get_time().isoformat(), str(record.values.get('elapsed')).rjust(8), record.values.get('card'), record.values.get('poi'), record.values.get('dispositivo')))
 
-printResultTables(results)
+#printResultTables(results)
 print(f"Query executed in : {timedelta(seconds = diff)} seconds")
 
 exit(0)
