@@ -120,5 +120,11 @@ The written time for 1490706 records in postgresql is: 0:31:51.030815 (780.05 re
 ```
 
 ## Estrazione dei dati e prestazioni di select
-[TODO]
 
+### primaQuery [TODO: rinominare]
+[TODO: risistemare] primaQuery viene eseguita in 13 secondi senza aggregateWindow ed in 26 con aggregateWindow.
+
+```
+Query executed in : 0:00:12.981277 seconds
+Query executed in : 0:00:25.722012 seconds
+```
