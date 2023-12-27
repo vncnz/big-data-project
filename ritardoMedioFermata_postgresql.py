@@ -18,14 +18,14 @@ cursor = conn.cursor()
 
 query = '''
 select DATE_TRUNC('month', datetime) AS month, route_id, trip_id, stop_id, avg(delay) from bigdata_project
-where day_of_service > '2020-09-10' and day_of_service < '2021-03-12' and delay is not null
+where day_of_service > '2020-09-10' and day_of_service < '2022-03-12' and delay is not null
 group by month, route_id, trip_id, stop_id
 -- limit 100
 '''
 
-query = '''
+queryy = '''
 select route_id, trip_id, stop_id, avg(delay) from bigdata_project
-where day_of_service > '2020-09-10' and day_of_service < '2020-10-12' and delay is not null
+where day_of_service > '2020-09-10' and day_of_service < '2021-10-12' and delay is not null
 group by route_id, trip_id, stop_id
 -- limit 100
 '''
