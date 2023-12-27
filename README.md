@@ -159,6 +159,25 @@ I tempi perché il processo in Python ottenesse la lista completa di risultati s
 
 Anche in questo caso si può notare come il raggruppamento aumenti il tempo in maniera non trascurabile, anche nel caso i risultati rientrino tutti in un'unica finestra. Con PostgreSQL, tuttavia, i tempi sono migliori di un ordine di grandezza rispetto ad InfluxDB.
 
+[TODO: aggiunta di tutti gli inserimenti aggiuntivi]
+
+
+## Considerazioni su PostgreSQL
+
+## Considerazioni su InfluxDB
+
+## Considerazioni finali
+
+
+
+
+
+
+
+
+
+
+
 ``` PostgreSQL (REMOVE ME)
 Query executed in : 0:00:00.369832 seconds --> 1 mese senza raggruppamento
 Query executed in : 0:00:00.564010 seconds --> 1 mese e raggruppato per mese
@@ -169,3 +188,147 @@ Query executed in : 0:00:00.640163 seconds --> 3 mesi e raggruppato per mese
 Query executed in : 0:00:01.141519 seconds --> 6 mesi senza raggruppamento
 Query executed in : 0:00:01.854010 seconds --> 6 mesi e raggruppato per mese
 ```
+
+
+
+
+
+?18 -> 718
+;18 -> 318
+;07 -> 307
+;14 -> 314
+57: -> 578
+
+-------------- POSTGRESQL --------------
+
+PRIMO
+[vncnz@Julie big-data-project]$ /bin/python /media/sf_NNNNNNNNNNNNNNNNNN/big-data-project/fillPostgreSQL.py
+File sch_gtfs_stops_202312071735.sql letto, sono 1053 comandi
+Sto parsando la riga 1053/1053 (100%)
+MAX RAM: 69.5
+  ⏳ Progress: [---------------------->                 ] 58 %
+0 errori, 1490706 record inseriti con successo
+The written time for 1490706 records in postgresql is: 0:30:16.069264 (820.84 records per second)
+
+SECONDO
+[vncnz@Julie big-data-project]$ /bin/python /media/sf_NNNNNNNNNNNNNNNNNN/big-data-project/fillPostgreSQL.py
+File sch_gtfs_stops_202312071735.sql letto, sono 1053 comandi
+Sto parsando la riga 1053/1053 (100%)
+MAX RAM: 59.5
+  ⏳ Progress: [----------------------------->          ] 75 %
+0 errori, 1881493 record inseriti con successo
+The written time for 1881493 records in postgresql is: 0:37:18.237019 (840.61 records per second)
+
+TERZO
+[vncnz@Julie big-data-project]$ /bin/python /media/sf_NNNNNNNNNNNNNNNNNN/big-data-project/fillPostgreSQL.py
+File sch_gtfs_stops_202312071735.sql letto, sono 1053 comandi
+Sto parsando la riga 1053/1053 (100%)
+MAX RAM: 60.5
+  ⏳ Progress: [------------------------------->        ] 81 %
+0 errori, 2021527 record inseriti con successo
+The written time for 2021527 records in postgresql is: 0:40:13.353439 (837.64 records per second)
+
+QUERY PER TREDICI MESI RAGGRUPPATI
+{'results': 753592, 'cols': 0, 'tables': 1}
+Query executed in : 0:00:10.162645 seconds
+
+QUARTO
+1894443 errori, 181008 record inseriti con successo
+The written time for 2075451 records in postgresql is: 0:18:33.961609 (1863.13 records per second)
+--- RIFATTO ---
+es/lib/python/debugpy/adapter/../../debugpy/launcher 49453 -- /media/sf_NNNNNNNNNNNNNNNNNN/big-data-project/fillPostgreSQL.py 
+File sch_gtfs_stops_202312071735.sql letto, sono 1053 comandi
+Sto parsando la riga 1053/1053 (100%)
+MAX RAM: 79.9
+  ⏳ Progress: [-------------------------------->       ] 84 %
+0 errori, 2075451 record inseriti con successo
+The written time for 2075451 records in postgresql is: 0:42:30.483643 (813.75 records per second)
+
+QUERY PER TREDICI MESI RAGGRUPPATI (cold start)
+{'results': 806881, 'cols': 0, 'tables': 1}
+Query executed in : 0:00:15.283426 seconds
+
+QUINTO
+[vncnz@Julie big-data-project]$ /bin/python /media/sf_NNNNNNNNNNNNNNNNNN/big-data-project/fillPostgreSQL.py
+File sch_gtfs_stops_202312071735.sql letto, sono 1053 comandi
+Sto parsando la riga 1053/1053 (100%)
+MAX RAM: 39.5
+  ⏳ Progress: [-------------------------------->       ] 84 %
+0 errori, 2079754 record inseriti con successo
+The written time for 2079754 records in postgresql is: 0:42:12.619232 (821.19 records per second)
+
+QUERY PER TREDICI MESI RAGGRUPPATI
+{'results': 806881, 'cols': 0, 'tables': 1}
+Query executed in : 0:00:11.608005 seconds
+
+QUERY PER TREDICI MESI RAGGRUPPATI (COLD START)
+{'results': 816239, 'cols': 0, 'tables': 1}
+Query executed in : 0:00:23.493937 seconds
+
+SESTO
+File sch_gtfs_stops_202312071735.sql letto, sono 1053 comandi
+Sto parsando la riga 1053/1053 (100%)
+MAX RAM: 38.6
+  ⏳ Progress: [----------------------->                ] 61 %
+0 errori, 886979 record inseriti con successo
+The written time for 886979 records in postgresql is: 0:13:02.482605 (1133.54 records per second)
+
+QUERY PER TREDICI MESI RAGGRUPPATI (COLD START)
+{'results': 848941, 'cols': 0, 'tables': 1}
+Query executed in : 0:00:17.925656 seconds
+
+
+
+-------------- INFLUX --------------
+
+SECONDO
+  ⏳ Progress: [----------------------------->          ] 75 %
+The written time for 2641119 records in influxdb is: 0:07:38.219967 (5763.87 records per second)
+
+TERZO
+File sch_gtfs_stops_202312071735.sql letto, sono 1053 comandi
+Sto parsando la riga 1053/1053 (100%)
+MAX RAM: 61.3
+  ⏳ Progress: [------------------------------->        ] 81 %
+The written time for 2882854 records in influxdb is: 0:10:01.458585 (4793.10 records per second)
+
+CAMBIO QUERY...
+VECCHIA: 
+from(bucket:"bigdata_project")
+|> range(start: 2020-09-11T00:00:00Z, stop: 2020-10-11T23:59:59Z) //-3y)
+|> filter(fn:(r) => r._measurement == "delay")
+// |> drop(columns: ["_start", "_stop"])
+|> keep(columns: ["_time", "route_id", "trip_id", "stop_id", "_value"])
+|> group(columns: ["route_id", "trip_id", "stop_id"])
+|> aggregateWindow(every: 1mo, fn: mean)
+|> group()
+
+NUOVA:
+from(bucket:"bigdata_project")
+|> range(start: 2020-09-11T00:00:00Z, stop: 2020-10-11T23:59:59Z) //-3y)
+|> filter(fn:(r) => r._measurement == "delay")
+// |> drop(columns: ["_start", "_stop"])
+|> group(columns: ["route_id", "trip_id", "stop_id"])
+|> aggregateWindow(every: 1mo, fn: mean)
+|> group()
+|> keep(columns: ["_time", "route_id", "trip_id", "stop_id", "_value"])
+
+Forse si può ancora migliorare!
+... aggiungendo un tag che è l'unione dei tag route, trip, stop (in fondo anche postgres ha una pk indicizzata sull'unione)
+Filtrando su un solo tag infatti la query di prova da 10 secondi scende a 3 (con la vecchia query era addirittura 20s)
+
+QUERY PER TREDICI MESI RAGGRUPPATI
+
+QUARTO
+
+QUERY PER TREDICI MESI RAGGRUPPATI (cold start)
+
+QUINTO
+
+QUERY PER TREDICI MESI RAGGRUPPATI
+
+QUERY PER TREDICI MESI RAGGRUPPATI (COLD START)
+
+SESTO
+
+QUERY PER TREDICI MESI RAGGRUPPATI (COLD START)

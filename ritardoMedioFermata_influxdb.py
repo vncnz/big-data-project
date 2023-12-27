@@ -18,25 +18,33 @@ client = InfluxDBClient(
 
 # write_api = client.write_api()
 query_api = client.query_api()
-client.api_client.configuration.timeout = 60*1000
+client.api_client.configuration.timeout = 2*60*1000
 
 query = '''
-import "strings"
+// import "strings"
 
 from(bucket:"bigdata_project")
 |> range(start: 2020-09-11T00:00:00Z, stop: 2020-10-11T23:59:59Z) //-3y)
 |> filter(fn:(r) => r._measurement == "delay")
-// |> drop(columns: ["_start", "_stop"])
-|> keep(columns: ["_time", "route_id", "trip_id", "stop_id", "_value"])
-|> group(columns: ["route_id", "trip_id", "stop_id"])
-// |> aggregateWindow(every: 1mo, fn: mean)
+|> drop(columns: ["_start", "_stop"])
+|> group(columns: ["stop_id"])
+|> aggregateWindow(every: 1mo, fn: mean)
 |> group()
+|> keep(columns: ["_time", "route_id", "trip_id", "stop_id", "_value"])
 
 // |> duplicate(column: "_time", as: "otm") solo per debug
 // |> map(fn: (r) => ({r with
 //         dayofyear: strings.substring(v: string(v:r._time), start: 5, end: 10)
 //     })
 // )
+'''
+
+queryy = '''
+from(bucket:"bigdata_project")
+  |> range(start: 0, stop: now())
+//  |> filter(fn: (r) => r["_measurement"] == "my-measurement")
+  |> keep(columns: ["_time"])
+  |> last(column: "_time")
 '''
 
 write_time_start = time.perf_counter()
