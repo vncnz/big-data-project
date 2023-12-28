@@ -133,20 +133,9 @@ I tempi perché il processo in Python ottenesse la lista completa di risultati s
 |Raggruppamento|Un mese       |Tre mesi      |Sei mesi      |
 |--------------|--------------|--------------|--------------|
 |Senza         |0:00:09.717803|0:00:07.864913|0:00:54.924719|
-|Con           |0:00:10.856785|0:00:33.108274|?|
+|Con           |0:00:10.856785|0:00:19.470520|0:01:27.276970|
 
-Si può notare come il raggruppamento aumenti il tempo in maniera nient'affatto trascurabile, anche nel caso i risultati rientrino tutti in un'unica finestra.
-
-``` influxdb (REMOVE ME)
-Query executed in : 0:00:07.370876 seconds --> 1 mese senza raggruppamento
-Query executed in : 0:00:18.962651 seconds --> 1 mese e raggruppato per mese
-
-Query executed in : 0:00:12.338076 seconds --> 3 mesi senza raggruppamento
-Query executed in : 0:00:41.957013 seconds --> 3 mesi e raggruppato per mese
-
-Query executed in : 0:01:09.479471 seconds --> 6 mesi senza raggruppamento
-Query executed in : 0:02:21.480946 seconds --> 6 mesi e raggruppato per mese
-```
+Si può notare come il raggruppamento aumenti il tempo di esecuzione, anche nel caso i risultati rientrino tutti in un'unica finestra.
 
 ### PostgreSQL
 
@@ -327,8 +316,12 @@ MAX RAM: 43.2
 The written time for 2067108 records in influxdb is: 0:07:18.547882 (4713.53 records per second)
 
 SECONDO
+  ⏳ Progress: [----------------------------->          ] 75 %
+The written time for 2640835 records in influxdb is: 0:08:24.141715 (5238.28 records per second)
 
 TERZO
+  ⏳ Progress: [------------------------------->        ] 81 %
+The written time for 2882403 records in influxdb is: 0:09:48.200154 (4900.38 records per second)
 
 QUERY PER TREDICI MESI RAGGRUPPATI
 

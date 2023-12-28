@@ -18,16 +18,16 @@ client = InfluxDBClient(
 
 # write_api = client.write_api()
 query_api = client.query_api()
-client.api_client.configuration.timeout = 3*60*1000
+client.api_client.configuration.timeout = 5*60*1000
 
 query = '''
 from(bucket:"bigdata_project")
-|> range(start: 2020-09-11T00:00:00Z, stop: 2021-03-11T23:59:59Z) //-3y)
+|> range(start: 2020-09-11T00:00:00Z, stop: 2021-10-11T23:59:59Z) //-3y)
 |> filter(fn:(r) => r._measurement == "de")
-|> drop(columns: ["_start", "_stop"])
+// |> drop(columns: ["_start", "_stop"])
 |> group(columns: ["route_id", "trip_id", "stop_id"])
 |> aggregateWindow(every: 1mo, fn: mean)
-|> group()
+// |> group()
 |> keep(columns: ["_time", "route_id", "trip_id", "stop_id", "_value"])
 '''
 
