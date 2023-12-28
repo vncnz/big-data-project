@@ -31,15 +31,16 @@ client = InfluxDBClient(
     url="http://localhost:8086",
     token='w1vABiIPJ28ixch-pz-DyDDjTlnOpLsxSY8yrUT5dvMi9Xn_wsnDUAU-E4oyTVFhfVHGtqskQRAUm_6LHbZQYA=='
 )
-client.api_client.configuration.timeout = 30*1000
+client.api_client.configuration.timeout = 45*1000
 
 if erase_all:
     print('Erasing all data in bucket...', end='')
-    start = "2023-01-01T00:00:00Z"
-    stop = "2025-10-02T00:00:00Z"
+    start = "2020-01-01T00:00:00Z"
+    stop = "2020-10-01T00:00:00Z"
     delete_api = client.delete_api()
     delete_api.delete(start, stop, None, bucket=bucket, org=org) # '_measurement="delay"'
     print('\rErased all data in bucket!      ')
+    exit(0)
 
 write_api = client.write_api()
 query_api = client.query_api()
@@ -50,13 +51,19 @@ query_api = client.query_api()
 # records = [rec for rec in records if rec['field'] == 'delay']# rec['delay'] is not None]
 # records = records[:1000]
 
+m = {
+    'delay': 'de',
+    'psg_up': 'up',
+    'psg_down': 'do'
+}
 def recordToGenericPoint (record):
-    return Point(record['field']) \
+    return Point(m[record['field']]) \
         .tag("day_of_service", record['day_of_service']) \
         .tag("route_id", record['route_id']) \
         .tag("trip_id", record['trip_id']) \
         .tag("stop_id", record['stop_id']) \
         .tag("block_id", record['block_id']) \
+        .tag("stop_call", f"{record['route_id']}_{record['trip_id']}_{record['stop_id']}") \
         .time(record['datetime'], WritePrecision.S)
 
 write_time_start = time.perf_counter()

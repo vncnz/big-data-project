@@ -1,5 +1,6 @@
 import time, pickle
 from datetime import datetime, timedelta
+import traceback
 
 import psycopg2
 
@@ -33,23 +34,32 @@ if erase_all:
 
 def recordToInsertQuery (record):
     return f"insert into public.{bucket} (day_of_service, route_id, trip_id, stop_id, block_id, datetime, delay, psg_up, psg_down) \
-        values ('{record['day_of_service']}', {record['route_id']}, {record['trip_id']}, {record['stop_id']}, {record['block_id']}, '{record['datetime']}'::timestamp, {record['delay'] or 'NULL'}, {record['psg_up'] or 'NULL'}, {record['psg_down'] or 'NULL'});"
+        values ('{record['day_of_service']}', {record['route_id']}, {record['trip_id']}, {record['stop_id']}, {record['block_id'] or 'NULL'}, '{record['datetime']}'::timestamp, {record['delay'] or 'NULL'}, {record['psg_up'] or 'NULL'}, {record['psg_down'] or 'NULL'}) \
+        on conflict (day_of_service, route_id, trip_id, stop_id) do nothing;"
 
 write_time_start = time.perf_counter()
 
-stopcalls_path = "rpt_stop_details_202312221216.sql"
+stopcalls_path = "rpt_stop_details_202312221216_6.sql"
 stops_path = "sch_gtfs_stops_202312071735.sql"
 total_rows = countRows(stopcalls_path)
 
 i = 0
+err = 0
+ok = 0
 for record in dataGenerator(stopcalls_path, stops_path, False):
     query = recordToInsertQuery(record)
     if not skip_write:
-        cursor.execute(query)
-        conn.commit()
+        try:
+            cursor.execute(query)
+            conn.commit()
+            ok += 1
+        except Exception as exc:
+            err += 1
+            traceback.print_exc()
     i += 1
     progressBar(i, total_rows, 40)
 print('')
+print(f'{err} errori, {ok} record inseriti con successo')
 
 write_time_end = time.perf_counter()
 

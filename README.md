@@ -132,8 +132,8 @@ I tempi perché il processo in Python ottenesse la lista completa di risultati s
 
 |Raggruppamento|Un mese       |Tre mesi      |Sei mesi      |
 |--------------|--------------|--------------|--------------|
-|Senza         |0:00:07.370876|0:00:12.338076|0:01:09.479471|
-|Con           |0:00:18.962651|0:00:41.957013|0:02:21.480946|
+|Senza         |0:00:09.717803|0:00:07.864913|0:00:54.924719|
+|Con           |0:00:10.856785|0:00:33.108274|?|
 
 Si può notare come il raggruppamento aumenti il tempo in maniera nient'affatto trascurabile, anche nel caso i risultati rientrino tutti in un'unica finestra.
 
@@ -316,6 +316,19 @@ from(bucket:"bigdata_project")
 Forse si può ancora migliorare!
 ... aggiungendo un tag che è l'unione dei tag route, trip, stop (in fondo anche postgres ha una pk indicizzata sull'unione)
 Filtrando su un solo tag infatti la query di prova da 10 secondi scende a 3 (con la vecchia query era addirittura 20s)
+
+
+
+PRIMO
+File sch_gtfs_stops_202312071735.sql letto, sono 1053 comandi
+Sto parsando la riga 1053/1053 (100%)
+MAX RAM: 43.2
+  ⏳ Progress: [---------------------->                 ] 58 %
+The written time for 2067108 records in influxdb is: 0:07:18.547882 (4713.53 records per second)
+
+SECONDO
+
+TERZO
 
 QUERY PER TREDICI MESI RAGGRUPPATI
 

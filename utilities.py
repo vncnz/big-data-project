@@ -259,7 +259,7 @@ def dataGenerator (stopcalls_path, stops_path, onlySample=False):
     if rec['update_timestamp'] and rec['stop_id']:
 
       # pulizia valori sballati
-      if rec['delay'] and abs(rec['delay']) > 6*60*60*1000: rec['delay'] = None
+      if rec['delay'] and abs(rec['delay']) > 3*60*60: rec['delay'] = None
       if rec['psg_up'] and rec['psg_up'] > 200: rec['psg_up'] = None
       if rec['psg_down'] and rec['psg_down'] > 200: rec['psg_down'] = None
 
