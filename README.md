@@ -132,8 +132,8 @@ I tempi perché il processo in Python ottenesse la lista completa di risultati s
 
 |Raggruppamento|Un mese       |Tre mesi      |Sei mesi      |
 |--------------|--------------|--------------|--------------|
-|Senza         |0:00:09.717803|0:00:07.864913|0:00:54.924719|
-|Con           |0:00:10.856785|0:00:19.470520|0:01:27.276970|
+|Senza         |0:00:07.040072|0:00:07.864913|0:00:54.924719|
+|Con           |0:00:09.885804|0:00:19.470520|0:01:27.276970|
 
 Si può notare come il raggruppamento aumenti il tempo di esecuzione, anche nel caso i risultati rientrino tutti in un'unica finestra.
 
@@ -309,27 +309,40 @@ Filtrando su un solo tag infatti la query di prova da 10 secondi scende a 3 (con
 
 
 PRIMO
-File sch_gtfs_stops_202312071735.sql letto, sono 1053 comandi
-Sto parsando la riga 1053/1053 (100%)
-MAX RAM: 43.2
   ⏳ Progress: [---------------------->                 ] 58 %
-The written time for 2067108 records in influxdb is: 0:07:18.547882 (4713.53 records per second)
+The written time for 2067108 records in influxdb is: 0:07:05.215808 (4861.32 records per second)
 
 SECONDO
   ⏳ Progress: [----------------------------->          ] 75 %
-The written time for 2640835 records in influxdb is: 0:08:24.141715 (5238.28 records per second)
+The written time for 2640835 records in influxdb is: 0:08:39.005862 (5088.26 records per second)
 
 TERZO
   ⏳ Progress: [------------------------------->        ] 81 %
-The written time for 2882403 records in influxdb is: 0:09:48.200154 (4900.38 records per second)
+The written time for 2882403 records in influxdb is: 0:09:25.619937 (5096.01 records per second)
 
-QUERY PER TREDICI MESI RAGGRUPPATI
+QUERY PER QUATTRO MESI RAGGRUPPATI
+{'results': 188405, 'cols': 3, 'tables': 37681}
+Query executed in : 0:00:25.999506 seconds
+
+CINQUE MESI
+{'results': 372240, 'cols': 3, 'tables': 62040}
+Query executed in : 0:00:51.305029 seconds
+
+SEI MESI
+{'results': 444115, 'cols': 3, 'tables': 63445}
+Query executed in : 0:01:20.212098 seconds
+
+
 
 QUARTO
+  ⏳ Progress: [-------------------------------->       ] 84 %
+The written time for 2978935 records in influxdb is: 0:10:08.921629 (4892.15 records per second)
 
 QUERY PER TREDICI MESI RAGGRUPPATI (cold start)
+SALTATA
 
 QUINTO
+
 
 QUERY PER TREDICI MESI RAGGRUPPATI
 
