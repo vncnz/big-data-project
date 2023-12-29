@@ -182,35 +182,12 @@ def separateRecords (rec):
       yield { **newrec, 'field': 'delay', 'value': rec['delay'] }
 
 import sqlite3
+conn = None
 def parse (line):
-  conn = sqlite3.connect(":memory:")
-  conn.execute('''CREATE TABLE rpt_stop_details (
-                        schedule_id int8 NOT NULL,
-                        block_id varchar NULL,
-                        trip_id varchar NOT NULL,
-                        arrival_time varchar NULL,
-                        real_time varchar NULL,
-                        stop_id varchar NULL,
-                        stop_sequence int4 NOT NULL,
-                        shape_dist_traveled float8 NULL,
-                        real_dist_traveled float8 NULL,
-                        day_of_service text NOT NULL,
-                        psg_up int4 NULL,
-                        psg_down int4 NULL,
-                        creation_timestamp timestamptz NULL,
-                        update_timestamp timestamptz NULL,
-                        vehicle_id int4 NULL,
-                        delay int4 NULL,
-                        reported bool NULL,
-                        route_id varchar NULL,
-                        quality int2 NULL,
-                        served bool NULL,
-                        fake bool NOT NULL DEFAULT false,
-                        count int8 NULL
-                      );''')
   conn.execute(line.replace('public.', ''))
   parsed_rows = list(conn.execute("select * from rpt_stop_details"))
-  conn.close()
+  # conn.close()
+  conn.execute("delete from rpt_stop_details")
   return parsed_rows
 
 def recordGeneratorFromFile (filename, onlySample=False) -> dict:
@@ -245,6 +222,33 @@ legend = 'schedule_id, block_id, trip_id, arrival_time, real_time, stop_id, stop
 def dataGenerator (stopcalls_path, stops_path, onlySample=False):
   stops_map = createStopMap(stops_path, onlySample)
 
+  global conn
+  conn = sqlite3.connect(":memory:")
+  conn.execute('''CREATE TABLE rpt_stop_details (
+                        schedule_id int8 NOT NULL,
+                        block_id varchar NULL,
+                        trip_id varchar NOT NULL,
+                        arrival_time varchar NULL,
+                        real_time varchar NULL,
+                        stop_id varchar NULL,
+                        stop_sequence int4 NOT NULL,
+                        shape_dist_traveled float8 NULL,
+                        real_dist_traveled float8 NULL,
+                        day_of_service text NOT NULL,
+                        psg_up int4 NULL,
+                        psg_down int4 NULL,
+                        creation_timestamp timestamptz NULL,
+                        update_timestamp timestamptz NULL,
+                        vehicle_id int4 NULL,
+                        delay int4 NULL,
+                        reported bool NULL,
+                        route_id varchar NULL,
+                        quality int2 NULL,
+                        served bool NULL,
+                        fake bool NOT NULL DEFAULT false,
+                        count int8 NULL
+                      );''')
+
   i = 0
   for rec in recordGeneratorFromFile(stopcalls_path, onlySample):
     rec = dict(zip(legend, rec))
@@ -268,6 +272,7 @@ def dataGenerator (stopcalls_path, stops_path, onlySample=False):
       # del rec['update_timestamp']
       # del rec['creation_timestamp']
       yield rec
+  conn.close()
 
 def _count_generator(reader):
     b = reader(1024 * 1024)
