@@ -313,6 +313,7 @@ Da questa tabella possiamo dedurre diverse cose:
 
 
 
+du -sh /home/vncnz/.influxdbv2/engine/data/*
 
 9,6M	/home/vncnz/.influxdbv2/engine/data/0794a0c95d6efca3 --> cfr4
 748M	/home/vncnz/.influxdbv2/engine/data/2e65568d31d832e4 --> cfr3
