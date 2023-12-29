@@ -97,23 +97,88 @@ Il software è scritto in python 3.x, la gestione di influxdb è effettuata tram
 ## Riempimento dei dati e prestazioni di inserimento
 Per entrambi i database c'è la necessità di leggere i dati dai file sql per effettuare poi l'inserimento nel database di destinazione. Siccome i file da cui i dati provengono sono di grandi dimensioni (giga) il caricamento da file e la scrittura nel database devono avvenire di pari passo.
 La preparazione dei dati per InfluxDB prevede la creazione, per ogni punto, di un'istanza di una classe fornita dalla libreria, la lettura e preparazione di tutti i dati impiega circa un minuto e venti secondi. La preparazione dei dati per PostgreSQL prevede invece la creazione di query tramite interpolazione di stringhe ed questo invece impiega circa un minuto e dieci secondi. In entrambi i casi questi tempi sono stati presi senza l'inserimento reale dei dati nel rispettivo database ai fini di capirne l'influenza sulle tempistiche totali misurate ma la creazione nella versione finale del codice avviene contestualmente all'inserimento, record per record, non occupando così un quantitativo di RAM degno di nota. Questo è reso necessario dal fatto che volendo testare l'inserimento di un alto numero di record lo spazio occupato dai dati in RAM non è accettabile.
-La quantità di record da inserire cambia in base al database:
-- 1490706 record in postgres
-- 2067523 record in influxdb
-Questo è dovuto al fatto che per ogni passaggio a fermata effettuato possono esistere da uno a tre dati raccolti:
+La quantità di record da inserire cambia in base al database, questo è dovuto al fatto che per ogni passaggio a fermata effettuato possono esistere da uno a tre dati raccolti:
 - ritardo/anticipo
 - passeggeri saliti
 - passeggeri scesi
 In PostgreSQL questi (eventualmente) tre dati vengono inseriti in un unico record mentre in InfluxDB vengono inseriti come tre diversi datapoints. Già in questo vediamo una differenza sostanziale in uno scenario di utilizzo in real time di uno e dell'altro database: con InfluxDB ogni dato che arriva dal campo si trasforma in un punto da inserire, con PostgreSQL ogni dato si trasforma invece in una _insert or update_. L'alternativa, per quanto riguarda PostgreSQL, è scegliere un momento in cui il sistema è scarico e preparare preventivamente tutti i record che dovranno ospitare i dati in arrivo durante la giornata, così da evitare le _insert or update_ ed effettuare solo degli _update_. Naturalmente è possibile strutturare la tabella in PostgreSQL in modo che ospiti una colonna _field_ ed una _value_ assumendo un aspetto più simile al bucket in InfluxDB ma questo sembra meno naturale per un database relazionale.
 
+I dati provengono da sei diversi file con estensione .sql di circa 500mb ciascuno [TODO: controllare il peso], le tempistiche di inserimento sono state le seguenti:
 
-The written time for 2067523 records in influxdb is: 0:02:08.089249 (16141.27 records per second) <-- fake
-The written time for 1490706 records in postgresql is: 0:01:10.859296 (21037.55 records per second) <-- fake
-
-The written time for 2067523 records in influxdb is: 0:08:16.944981 (4160.47 records per second) <-- real
-The written time for 1490706 records in postgresql is: 0:31:51.030815 (780.05 records per second) <-- real
-
-
+<table>
+  <thead>
+    <tr>
+      <th></th>
+      <th colspan="3">PostgreSQL</th>
+      <th colspan="3">Influxdb</th>
+    </tr>
+    <tr>
+      <th>File</th>
+      <th># records</th>
+      <th>Tempo</th>
+      <th>rec/sec</th>
+      <th># records</th>
+      <th>Tempo</th>
+      <th>rec/sec</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>1490706</td>
+      <td>0:30:16.069264</td>
+      <td>820.84</td>
+      <td>2067108</td>
+      <td>0:07:05.215808</td>
+      <td>4861.32</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>1881493</td>
+      <td>0:37:18.237019</td>
+      <td>840.61</td>
+      <td>2640835</td>
+      <td>0:08:39.005862</td>
+      <td>5088.26</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>2021527</td>
+      <td>0:40:13.353439</td>
+      <td>837.64</td>
+      <td>2882403</td>
+      <td>0:09:25.619937</td>
+      <td>5096.01</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>2075451</td>
+      <td>0:42:30.483643</td>
+      <td>813.75</td>
+      <td>2978935</td>
+      <td>0:10:08.921629</td>
+      <td>4892.15</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>2079754</td>
+      <td>0:42:12.619232</td>
+      <td>821.19</td>
+      <td>2934493</td>
+      <td>0:10:44.535332</td>
+      <td>4552.88</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>886979</td>
+      <td>0:13:02.482605</td>
+      <td>1133.54</td>
+      <td>1288200</td>
+      <td>0:04:39.054345</td>
+      <td>4616.31</td>
+    </tr>
+  </tbody>
+</table>
 
 ```
 [TODO: rimuovere, esempio inserimento per copia-incolla della tilda]
@@ -126,34 +191,136 @@ La prima query per testare e confrontare le prestazioni tra i due database in es
 
 Questa query è stata creata in due versioni diverse e lanciata in entrambe le versioni su periodi di uno, tre e sei mesi. Le due versioni differiscono tra loro per l'assenza o la presenza di un raggruppamento su base mensile.
 
-### InfluxDB
+Le query eseguite in PostgreSQL per ottenere i dati sono le seguenti:
+(Con raggruppamento)
+```
+select DATE_TRUNC('month', datetime) AS month, route_id, trip_id, stop_id, avg(delay) from bigdata_project
+where day_of_service > '2020-09-10' and day_of_service < '2022-03-12' and delay is not null
+group by month, route_id, trip_id, stop_id
+```
 
-I tempi perché il processo in Python ottenesse la lista completa di risultati sono i seguenti, espressi nel formato h:mm:ss.sss :
+(Senza raggruppamento)
+```
+select route_id, trip_id, stop_id, avg(delay) from bigdata_project
+where day_of_service > '2020-09-10' and day_of_service < '2021-10-12' and delay is not null
+group by route_id, trip_id, stop_id
+```
 
-|Raggruppamento|Un mese       |Tre mesi      |Sei mesi      |
-|--------------|--------------|--------------|--------------|
-|Senza         |0:00:07.040072|0:00:07.864913|0:00:54.924719|
-|Con           |0:00:09.885804|0:00:19.470520|0:01:27.276970|
+Per quanto riguarda InfluxDB invece sono le seguenti:
+(Con raggruppamento)
+```
+from(bucket:"bigdata_project2")
+|> range(start: 2020-09-11T00:00:00Z, stop: 2021-03-11T23:59:59Z)
+|> filter(fn:(r) => r._measurement == "de")
+// |> drop(columns: ["_start", "_stop"])
+|> group(columns: ["route_id", "trip_id", "stop_id"])
+|> aggregateWindow(every: 1mo, fn: mean)
+// |> group()
+|> keep(columns: ["_time", "route_id", "trip_id", "stop_id", "_value"])
+```
 
-Si può notare come il raggruppamento aumenti il tempo di esecuzione, anche nel caso i risultati rientrino tutti in un'unica finestra.
+(Senza raggruppamento)
+```
+from(bucket:"bigdata_project2")
+|> range(start: 2020-09-11T00:00:00Z, stop: 2020-10-11T23:59:59Z)
+|> filter(fn:(r) => r._measurement == "de")
+|> drop(columns: ["_start", "_stop"])
+|> group(columns: ["route_id", "trip_id", "stop_id"])
+|> mean()
+|> group()
+|> keep(columns: ["_time", "route_id", "trip_id", "stop_id", "_value"])
+```
 
-### PostgreSQL
+I tempi perché il processo in Python ottenesse la lista completa di risultati sono espressi nel formato h:mm:ss.sss. Queste tempistiche sono state ottenute dopo l'inserimento nei database del solo file 1 di dati:
 
-I tempi perché il processo in Python ottenesse la lista completa di risultati sono i seguenti, espressi nel formato h:mm:ss.sss :
+<table>
+  <thead>
+    <tr>
+      <th></th>
+      <th colspan="3">PostgreSQL</th>
+      <th colspan="3">Influxdb</th>
+    </tr>
+    <tr>
+      <th>Raggruppamento</th>
+      <th>Un mese</th>
+      <th>Tre mesi</th>
+      <th>Sei mesi</th>
+      <th>Un mese</th>
+      <th>Tre mesi</th>
+      <th>Sei mesi</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Senza</td>
+      <td>0:00:00.369832</td><td>0:00:00.472875</td><td>0:00:01.141519</td>
+      <td>0:00:07.040072</td><td>0:00:07.864913</td><td>0:00:54.924719</td>
+    </tr>
+    <tr>
+      <td>Con</td>
+      <td>0:00:00.564010</td><td>0:00:00.640163</td><td>0:00:01.854010</td>
+      <td>0:00:09.885804</td><td>0:00:19.470520</td><td>0:01:27.276970</td>
+    </tr>
+  </tbody>
+</table>
 
-|Raggruppamento|Un mese       |Tre mesi      |Sei mesi      |
-|--------------|--------------|--------------|--------------|
-|Senza         |0:00:00.369832|0:00:00.472875|0:00:01.141519|
-|Con           |0:00:00.564010|0:00:00.640163|0:00:01.854010|
+Vediamo che la situazione per quanto riguarda il recupero dei dati si è ribaltata. In fase di lettura dei dati è presente infatti una fortissima disparità che vede PostgreSQL estremamente più veloce rispetto ad InfluxDB nella lettura. Parleremo in seguito di come questo può non essere un problema per l'utilizzatore di InfluxDB.
 
-Anche in questo caso si può notare come il raggruppamento aumenti il tempo in maniera non trascurabile, anche nel caso i risultati rientrino tutti in un'unica finestra. Con PostgreSQL, tuttavia, i tempi sono migliori di un ordine di grandezza rispetto ad InfluxDB.
+Seguono i tempi per le stesse query nelle stesse modalità ma con tutti i dati inseriti:
+[TODO]
 
-[TODO: aggiunta di tutti gli inserimenti aggiuntivi]
+## Una questione di cardinalità
+La cardinalità è un concetto importante in InfluxDB ed inficia pesantemente le prestazioni ed i requisiti, tanto che si può mettere in relazione la cardinalità con il quantitativo di RAM occupata.
 
+Per studiare a fondo le prestazioni di InfluxDB è stato usato un set di dati più ristretto del precedente e sono stati creati tre diversi buckets con un diverso numero di tags:
+1) Route_trip_stop, Block
+2) Route, Trip, Stop, Block
+3) Route, Trip, Stop, Route_trip_stop, Block
+4) Block
+
+La seconda combinazione è quella più naturale mentre la prima e la terza sono state create per valutarne gli impatti sulle prestazioni. La quarta non ha utilità pratica ma è stata creata solo per analizzare la situazione in cui si ha un unico tag con cardinalità ridotta.
+Da notare come Route_trip_stop sia dato dalla combinazione tra tre diversi tag e la sua cardinalità sia pari alla moltiplicazione tra le cardinalità di tali tag.
+
+### Prestazioni in inserimento
+
+Per i tag fare riferimento all'elenco qui sopra. Il tempo è sempre nel formato h:mm:ss.sss mentre rec/sec sta per records inseriti al secondo.
+|Tags|         Tempo|rec/sec|
+|----|--------------|-------|
+|   1|0:07:12.722923|5139.89|
+|   2|0:07:38.987807|4845.77|
+|   3|0:08:09.947025|4539.57|
+|   4|0:06:15.663339|5920.59|
+
+All'aumentare del numero di tag diminuisce in maniera non rilevante la velocità di inserimento dei records.
+
+### Prestazioni di lettura: uno o più tags con stessa cardinalità risultante
+Per confrontare la modalità 2 con la modalità 3 possiamo fare due query che differiscono solo per il raggruppamento: una raggruppa per la combinazione route, trip e stop (modalità 2) e l'altra per route_trip_stop (modalità 3):
+
+|Mode|Tempo         |Numero risultati|
+|----|--------------|----------------|
+|3su3|0:00:21.358964|          100734|
+|3su2|0:00:21.600971|          100734|
+|1su3|0:00:18.654712|          100734|
+|1su1|0:00:16.935693|          100734|
+|Bsu3|0:00:07.488148|             132|
+|Bsu4|0:00:00.342538|             132|
+
+Da questa tabella possiamo dedurre diverse cose:
+- guardando a 3su3 e 1su3, utilizzare un solo tag dato dalla combinazione di tre tag diversi riduce leggermente le tempistiche ma non sembra dare un vero vantaggio rispetto alla combinazione di più tag con la stessa cardinalità risultante.
+- guardando a 3su3 e 3su2, filtrando per tre tag separati (route, trip e stop) su una tabella il fatto che essa abbia o meno un tag che ne sia la combinazione (route_trip_stop)
+- una query che lavora sullo stesso numero di dati nello stesso periodo ma utilizza solo un tag con cardinalità minore impiega un tempo decisamente minore
+- una query che lavora sullo stesso numero di dati nello stesso periodo ma su un bucket che non possiede un'elevata cardinalità è estremamente più performante
+
+
+
+
+
+## La soluzione alla lentezza del recupero dati di InfluxDB: i task
 
 ## Considerazioni su PostgreSQL
 
 ## Considerazioni su InfluxDB
+
 
 ## Considerazioni finali
 
@@ -358,3 +525,19 @@ The written time for 1288200 records in influxdb is: 0:04:39.054345 (4616.31 rec
 QUERY PER SEI MESI RAGGRUPPATI (COLD START)
 {'results': 560000, 'cols': 3, 'tables': 80000}
 Query executed in : 0:02:22.445360 seconds
+
+##############################################################################################
+##############################################################################################
+
+Confronto per numero di tag:
+
+Route, trip, stop, block, route_trip_stop
+  ⏳ Progress: [------------------------------->        ] 80 %
+The written time for 2224148 records in influxdb is: 0:08:09.947025 (4539.57 records per second)
+
+Route, trip, stop, block
+  ⏳ Progress: [------------------------------->        ] 80 %
+The written time for 2224148 records in influxdb is: 0:07:38.987807 (4845.77 records per second)
+
+  ⏳ Progress: [------------------------------->        ] 80 %
+The written time for 2224148 records in influxdb is: 0:07:12.722923 (5139.89 records per second)
