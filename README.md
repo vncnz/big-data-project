@@ -311,16 +311,20 @@ Da questa tabella possiamo dedurre diverse cose:
 - una query che lavora sullo stesso numero di dati nello stesso periodo ma utilizza solo un tag con cardinalità minore impiega un tempo decisamente minore
 - una query che lavora sullo stesso numero di dati nello stesso periodo ma su un bucket che non possiede un'elevata cardinalità è estremamente più performante
 
+### Occupazione spazio su disco
 
+Per visualizzare in ambiente linux la dimensione dei vari buckets possiamo semplicemente eseguire un comando simile a `du -sh /home/vncnz/.influxdbv2/engine/data/* | sort -hr` ottenendo un output simile al seguente (l'indicazione del bucket è stata aggiunta a posteriori):
 
-du -sh /home/vncnz/.influxdbv2/engine/data/*
+```
+4,7G	/home/vncnz/.influxdbv2/engine/data/b77778300c262ad4 --> bucket completo
+748M	/home/vncnz/.influxdbv2/engine/data/2e65568d31d832e4 --> bucket ridotto per confronto (modalità 3)
+658M	/home/vncnz/.influxdbv2/engine/data/f786e5d253b98a85 --> bucket ridotto per confronto (modalità 2)
+530M	/home/vncnz/.influxdbv2/engine/data/f7fd809664dfe27c --> bucket ridotto per confronto (modalità 1)
+9,6M	/home/vncnz/.influxdbv2/engine/data/0794a0c95d6efca3 --> bucket ridotto per confronto (modalità 4)
+160K	/home/vncnz/.influxdbv2/engine/data/394df8c8e6b03e99 --> bucket per utilizzo interno dell'engine
+```
 
-9,6M	/home/vncnz/.influxdbv2/engine/data/0794a0c95d6efca3 --> cfr4
-748M	/home/vncnz/.influxdbv2/engine/data/2e65568d31d832e4 --> cfr3
-160K	/home/vncnz/.influxdbv2/engine/data/394df8c8e6b03e99 --> monitoring
-4,7G	/home/vncnz/.influxdbv2/engine/data/b77778300c262ad4 --> project2
-658M	/home/vncnz/.influxdbv2/engine/data/f786e5d253b98a85 --> cfr2
-530M	/home/vncnz/.influxdbv2/engine/data/f7fd809664dfe27c --> cfr1
+Confrontando il bucket modalità 4 con quelli delle altre modalità è evidente come il peso dei dati sia estremamente ridotto e gli indici legati ai tag abbiano un peso molto elevato
 
 
 
