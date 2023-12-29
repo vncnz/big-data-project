@@ -18,7 +18,7 @@ print = functools.partial(print, flush=True)
 # print(f"The loading time for {len(records)} records in python is: {timedelta(seconds = (pickle_time_end - pickle_time_start))}")
 
 org = 'vncnz'
-bucket = 'bigdata_project'
+bucket = 'bigdata_project2'
 pwd = 'bigdata_project'
 erase_all = False
 skip_write = False
@@ -31,7 +31,7 @@ client = InfluxDBClient(
     url="http://localhost:8086",
     token='w1vABiIPJ28ixch-pz-DyDDjTlnOpLsxSY8yrUT5dvMi9Xn_wsnDUAU-E4oyTVFhfVHGtqskQRAUm_6LHbZQYA=='
 )
-client.api_client.configuration.timeout = 45*1000
+client.api_client.configuration.timeout = 60*1000
 
 if erase_all:
     print('Erasing all data in bucket...', end='')
@@ -68,7 +68,7 @@ def recordToGenericPoint (record):
 
 write_time_start = time.perf_counter()
 
-stopcalls_path = "rpt_stop_details_202312221216.sql"
+stopcalls_path = "rpt_stop_details_202312221216_6.sql"
 stops_path = "sch_gtfs_stops_202312071735.sql"
 total_rows = countRows(stopcalls_path)
 

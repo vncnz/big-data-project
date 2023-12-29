@@ -21,8 +21,8 @@ query_api = client.query_api()
 client.api_client.configuration.timeout = 5*60*1000
 
 query = '''
-from(bucket:"bigdata_project")
-|> range(start: 2020-09-11T00:00:00Z, stop: 2021-10-11T23:59:59Z) //-3y)
+from(bucket:"bigdata_project2")
+|> range(start: 2020-09-11T00:00:00Z, stop: 2021-03-11T23:59:59Z) //-3y)
 |> filter(fn:(r) => r._measurement == "de")
 // |> drop(columns: ["_start", "_stop"])
 |> group(columns: ["route_id", "trip_id", "stop_id"])
@@ -32,8 +32,8 @@ from(bucket:"bigdata_project")
 '''
 
 queryy = '''
-from(bucket:"bigdata_project")
-|> range(start: 2020-09-11T00:00:00Z, stop: 2021-03-11T23:59:59Z) //-3y)
+from(bucket:"bigdata_project2")
+|> range(start: 2020-09-11T00:00:00Z, stop: 2020-10-11T23:59:59Z) //-3y)
 |> filter(fn:(r) => r._measurement == "de")
 |> drop(columns: ["_start", "_stop"])
 |> group(columns: ["route_id", "trip_id", "stop_id"])

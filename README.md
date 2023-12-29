@@ -342,12 +342,19 @@ QUERY PER TREDICI MESI RAGGRUPPATI (cold start)
 SALTATA
 
 QUINTO
-
+  ⏳ Progress: [-------------------------------->       ] 84 %
+The written time for 2934493 records in influxdb is: 0:10:44.535332 (4552.88 records per second)
 
 QUERY PER TREDICI MESI RAGGRUPPATI
+SALTATA
 
 QUERY PER TREDICI MESI RAGGRUPPATI (COLD START)
+SALTATA
 
 SESTO
+  ⏳ Progress: [----------------------->                ] 61 %
+The written time for 1288200 records in influxdb is: 0:04:39.054345 (4616.31 records per second)
 
-QUERY PER TREDICI MESI RAGGRUPPATI (COLD START)
+QUERY PER SEI MESI RAGGRUPPATI (COLD START)
+{'results': 560000, 'cols': 3, 'tables': 80000}
+Query executed in : 0:02:22.445360 seconds
