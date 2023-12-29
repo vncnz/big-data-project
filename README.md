@@ -314,6 +314,17 @@ Da questa tabella possiamo dedurre diverse cose:
 
 
 
+9,6M	/home/vncnz/.influxdbv2/engine/data/0794a0c95d6efca3 --> cfr4
+748M	/home/vncnz/.influxdbv2/engine/data/2e65568d31d832e4 --> cfr3
+160K	/home/vncnz/.influxdbv2/engine/data/394df8c8e6b03e99 --> monitoring
+4,7G	/home/vncnz/.influxdbv2/engine/data/b77778300c262ad4 --> project2
+658M	/home/vncnz/.influxdbv2/engine/data/f786e5d253b98a85 --> cfr2
+530M	/home/vncnz/.influxdbv2/engine/data/f7fd809664dfe27c --> cfr1
+
+
+
+
+
 
 ## La soluzione alla lentezza del recupero dati di InfluxDB: i task
 
