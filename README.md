@@ -326,6 +326,8 @@ Per visualizzare in ambiente linux la dimensione dei vari buckets possiamo sempl
 
 Confrontando il bucket modalità 4 con quelli delle altre modalità è evidente come il peso dei dati sia estremamente ridotto e gli indici legati ai tag abbiano un peso molto elevato
 
+Per confronto, eseguendo in postgres la query `SELECT pg_size_pretty( pg_total_relation_size('bigdata_cfr') );` si vede un peso di 144MB.
+
 
 
 
@@ -557,3 +559,8 @@ The written time for 2224148 records in influxdb is: 0:07:38.987807 (4845.77 rec
 
   ⏳ Progress: [------------------------------->        ] 80 %
 The written time for 2224148 records in influxdb is: 0:07:12.722923 (5139.89 records per second)
+
+Su postgres la tabella di cfr è
+  ⏳ Progress: [------------------------------->        ] 80 %
+0 errori, 1583462 record inseriti con successo
+The written time for 1583462 records in postgresql is: 0:29:12.295566 (903.65 records per second)
