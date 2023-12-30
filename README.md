@@ -180,10 +180,6 @@ I dati provengono da sei diversi file con estensione .sql di circa 500mb ciascun
   </tbody>
 </table>
 
-```
-[TODO: rimuovere, esempio inserimento per copia-incolla della tilda]
-```
-
 ## Estrazione dei dati e prestazioni di select
 
 ## Ritardo medio fermata
@@ -272,14 +268,19 @@ Seguono i tempi per le stesse query nelle stesse modalità ma con tutti i dati i
 ## Una questione di cardinalità
 La cardinalità è un concetto importante in InfluxDB ed inficia pesantemente le prestazioni ed i requisiti, tanto che si può mettere in relazione la cardinalità con il quantitativo di RAM occupata.
 
-Per studiare a fondo le prestazioni di InfluxDB è stato usato un set di dati più ristretto del precedente e sono stati creati tre diversi buckets con un diverso numero di tags:
+Per studiare a fondo le prestazioni di InfluxDB nei vari casi è stato usato un set di dati più ristretto del precedente e sono stati creati diversi buckets con una diversa configurazione di tags:
 1) Route_trip_stop, Block
 2) Route, Trip, Stop, Block
 3) Route, Trip, Stop, Route_trip_stop, Block
-4) Block
+4) Block, route % 5, trip % 5, stop % 5
+5) Block
 
-La seconda combinazione è quella più naturale mentre la prima e la terza sono state create per valutarne gli impatti sulle prestazioni. La quarta non ha utilità pratica ma è stata creata solo per analizzare la situazione in cui si ha un unico tag con cardinalità ridotta.
+Per la quarta combinazione i tag con cardinalità maggiore sono stati inseriti dopo un'operazione di modulo 5 in modo da abbassarne la cardinalità ma avere comunque lo stesso quantitativo di informazioni inserite nel bucket.
+La seconda combinazione è quella più naturale mentre la prima e la terza sono state create per valutarne gli impatti sulle prestazioni. La quarta e la quinta non hanno utilità pratica ma sono state create solo per analizzare la situazione in cui si hanno tag con cardinalità ridotta oppure un unico tag.
 Da notare come Route_trip_stop sia dato dalla combinazione tra tre diversi tag e la sua cardinalità sia pari alla moltiplicazione tra le cardinalità di tali tag.
+Sono stati create, per comfronto, due tabelle in Postgres partendo dagli stessi set di dati:
+1) Route, Trip, Stop, Block
+2) Block
 
 ### Prestazioni in inserimento
 
@@ -289,9 +290,14 @@ Per i tag fare riferimento all'elenco qui sopra. Il tempo è sempre nel formato 
 |   1|0:07:12.722923|5139.89|
 |   2|0:07:38.987807|4845.77|
 |   3|0:08:09.947025|4539.57|
-|   4|0:06:15.663339|5920.59|
+|   4|0:06:42.864470|5520.83|
+|   5|0:06:07.548264|6051.31|
+|  PG|0:29:12.295566| 903.65|
+| PG2|0:36:12.246039| 728.95|
+[TODO: Ricontrollare PG2...]
 
 All'aumentare del numero di tag diminuisce in maniera non rilevante la velocità di inserimento dei records.
+E' stato inserito per confronto anche il tempo di inserimento dei dati in una tabella Postgres dotata di un unico indice sulla colonna block_id.
 
 ### Prestazioni di lettura: uno o più tags con stessa cardinalità risultante
 Per confrontare la modalità 2 con la modalità 3 possiamo fare due query che differiscono solo per il raggruppamento: una raggruppa per la combinazione route, trip e stop (modalità 2) e l'altra per route_trip_stop (modalità 3):
@@ -303,7 +309,10 @@ Per confrontare la modalità 2 con la modalità 3 possiamo fare due query che di
 |1su3|0:00:18.654712|          100734|
 |1su1|0:00:16.935693|          100734|
 |Bsu3|0:00:07.488148|             132|
-|Bsu4|0:00:00.342538|             132|
+|Bsu4|0:00:05.078239|             198|
+| PG1|0:00:00.805464|             149|
+| PG2|0:00:01.067952|             149|
+[TODO: ricontrollare numero risultati Bsu3 e Bsu4...]
 
 Da questa tabella possiamo dedurre diverse cose:
 - guardando a 3su3 e 1su3, utilizzare un solo tag dato dalla combinazione di tre tag diversi riduce leggermente le tempistiche ma non sembra dare un vero vantaggio rispetto alla combinazione di più tag con la stessa cardinalità risultante.
@@ -317,16 +326,28 @@ Per visualizzare in ambiente linux la dimensione dei vari buckets possiamo sempl
 
 ```
 4,7G	/home/vncnz/.influxdbv2/engine/data/b77778300c262ad4 --> bucket completo
-748M	/home/vncnz/.influxdbv2/engine/data/2e65568d31d832e4 --> bucket ridotto per confronto (modalità 3)
-658M	/home/vncnz/.influxdbv2/engine/data/f786e5d253b98a85 --> bucket ridotto per confronto (modalità 2)
-530M	/home/vncnz/.influxdbv2/engine/data/f7fd809664dfe27c --> bucket ridotto per confronto (modalità 1)
-9,6M	/home/vncnz/.influxdbv2/engine/data/0794a0c95d6efca3 --> bucket ridotto per confronto (modalità 4)
+879M	/home/vncnz/.influxdbv2/engine/data/2e65568d31d832e4 --> bucket ridotto per confronto (modalità 3)
+697M	/home/vncnz/.influxdbv2/engine/data/f786e5d253b98a85 --> bucket ridotto per confronto (modalità 2)
+614M	/home/vncnz/.influxdbv2/engine/data/f7fd809664dfe27c --> bucket ridotto per confronto (modalità 1)
+48M	  /home/vncnz/.influxdbv2/engine/data/0794a0c95d6efca3 --> bucket ridotto per confronto (modalità 4)
+9,6M	/home/vncnz/.influxdbv2/engine/data/acf8fb1c6410bbe2 --> bucket ridotto per confronto (modalità 5)
 160K	/home/vncnz/.influxdbv2/engine/data/394df8c8e6b03e99 --> bucket per utilizzo interno dell'engine
 ```
 
-Confrontando il bucket modalità 4 con quelli delle altre modalità è evidente come il peso dei dati sia estremamente ridotto e gli indici legati ai tag abbiano un peso molto elevato
+Per confronto, eseguendo in postgres la query `SELECT pg_size_pretty( pg_total_relation_size('NOME_TABELLA') );` si vede un peso di 144MB per la modalità PG1 e 101MB per la modalità PG2.
+Riassumendo i dati abbiamo quindi la seguente tabella:
 
-Per confronto, eseguendo in postgres la query `SELECT pg_size_pretty( pg_total_relation_size('bigdata_cfr') );` si vede un peso di 144MB.
+|Mode|Spazio|
+|----|------|
+|   1|  530M|
+|   2|  658M|
+|   3|  748M|
+|   4|   48M|
+|   5|  9,6M|
+|  PG|  144M|
+| PG2|  101M|
+
+Confrontando il bucket modalità 4 con quelli delle altre modalità è evidente come il peso dei dati sia decisamente ridotto e gli indici legati ai tag abbiano un peso molto elevato. E' altrettanto evidente come l'occupazione di spazio dei dati a bassa cardinalità sia di circa un terzo rispetto alla corrispondente tabella in PostgreSQL. Confrontando poi la modalità 5 di InfluxDB con la modalità equivalente di PostgreSQL vediamo che InfluxDB arriva ad occupare addirittura un decimo dello spazio necessario a PostgreSQL.
 
 
 
