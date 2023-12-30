@@ -2,14 +2,14 @@ from datetime import timedelta
 from utilities import groupBy, produceData
 import itertools, time, pickle
 
-read_file = False
+read_file = True
 
 if read_file:
     zero_time = time.perf_counter()
 
-    stopcalls_path = "rpt_stop_details_202312071704.sql"
+    stopcalls_path = "rpt_stop_details_202312221216.sql"
     stops_path = "sch_gtfs_stops_202312071735.sql"
-    records = produceData(stopcalls_path, stops_path)
+    records = produceData(stopcalls_path, stops_path, onlySample=False)
 
     one_time = time.perf_counter()
 
