@@ -10,23 +10,12 @@ from utilities import countRows, dataGenerator, progressBar, separateRecords
 import functools
 print = functools.partial(print, flush=True)
 
-# pickle_time_start = time.perf_counter()
-# with open('records', 'rb') as file:
-#     records = pickle.load(file)
-# records = [x for x in records if x['datetime'] and x['stop_id'] and (x['field'] == 'delay' or x['value'] < 200) and (x['field'] != 'delay' or x['value'] < 60*60*2)]
-# pickle_time_end = time.perf_counter()
-# print(f"The loading time for {len(records)} records in python is: {timedelta(seconds = (pickle_time_end - pickle_time_start))}")
-
 org = 'vncnz'
 bucket = 'bigdata_project2'
 pwd = 'bigdata_project'
 erase_all = False
 skip_write = False
 
-# client = InfluxDBClient(
-#   url="https://europe-west1-1.gcp.cloud2.influxdata.com",
-#   token="Taiju5w8TEteVMjU4bt6emM3L0NpgnWAinolzSEYfB4JCVphV9DjebNRvQASWXzKSOqkKO4TvthcB74N1ICCPw=="
-# )
 client = InfluxDBClient(
     url="http://localhost:8086",
     token='w1vABiIPJ28ixch-pz-DyDDjTlnOpLsxSY8yrUT5dvMi9Xn_wsnDUAU-E4oyTVFhfVHGtqskQRAUm_6LHbZQYA=='
@@ -44,12 +33,6 @@ if erase_all:
 
 write_api = client.write_api()
 query_api = client.query_api()
-
-# path_linux = '/home/vncnz/TODO'
-# path_windows = 'TODO'
-
-# records = [rec for rec in records if rec['field'] == 'delay']# rec['delay'] is not None]
-# records = records[:1000]
 
 m = {
     'delay': 'de',
