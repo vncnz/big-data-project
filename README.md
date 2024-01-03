@@ -358,17 +358,17 @@ Per visualizzare in ambiente linux la dimensione dei vari buckets possiamo sempl
 
 ```
 4,7G	/home/vncnz/.influxdbv2/engine/data/b77778300c262ad4 --> bucket completo
-879M	/home/vncnz/.influxdbv2/engine/data/2e65568d31d832e4 --> bucket ridotto per confronto (modalità 3)
-697M	/home/vncnz/.influxdbv2/engine/data/f786e5d253b98a85 --> bucket ridotto per confronto (modalità 2)
-614M	/home/vncnz/.influxdbv2/engine/data/f7fd809664dfe27c --> bucket ridotto per confronto (modalità 1)
-48M	  /home/vncnz/.influxdbv2/engine/data/0794a0c95d6efca3 --> bucket ridotto per confronto (modalità 4)
-9,6M	/home/vncnz/.influxdbv2/engine/data/acf8fb1c6410bbe2 --> bucket ridotto per confronto (modalità 5)
+879M	/home/vncnz/.influxdbv2/engine/data/2e65568d31d832e4 --> bucket ridotto(IN3)
+697M	/home/vncnz/.influxdbv2/engine/data/f786e5d253b98a85 --> bucket ridotto(IN2)
+614M	/home/vncnz/.influxdbv2/engine/data/f7fd809664dfe27c --> bucket ridotto(IN1)
+48M	  /home/vncnz/.influxdbv2/engine/data/0794a0c95d6efca3 --> bucket ridotto(IN4)
+9,6M	/home/vncnz/.influxdbv2/engine/data/acf8fb1c6410bbe2 --> bucket ridotto(IN5)
 160K	/home/vncnz/.influxdbv2/engine/data/394df8c8e6b03e99 --> bucket per utilizzo interno dell'engine
 ```
 
 Gli indici in InfluxDB sono memorizzati insieme ai dati nei file TSM stessi: i file TSM che vediamo qui contengono sia i dati effettivi delle serie temporali che i metadati e gli indici.
 
-Per confronto, eseguendo in postgres la query `SELECT pg_size_pretty( pg_table_size('NOME_TABELLA') );` si vede un peso di 144MB per la modalità PG1 e 101MB per la modalità PG2. A questi dobbiamo sommare la dimensione degli indici, 17M per l'indice sulla tabella PG1 e 10M per l'indice sulla tabella PG2, entrambi i valori sono ottenibili con una query del tipo `select pg_size_pretty(pg_indexes_size('NOME_TABELLA'))`. Avremmo potuto utilizzare la funzione `pg_total_relation_size` perdendo la distinzione tra peso dati e peso indici.
+Per confronto, eseguendo in postgres la query `SELECT pg_size_pretty( pg_table_size('NOME_TABELLA') );` si vede un peso di 144MB per PG1 e 101MB per la PG2. A questi dobbiamo sommare la dimensione degli indici, 17M per l'indice sulla tabella PG1 e 10M per l'indice sulla tabella PG2, entrambi i valori sono ottenibili con una query del tipo `select pg_size_pretty(pg_indexes_size('NOME_TABELLA'))`. Avremmo potuto utilizzare la funzione `pg_total_relation_size` perdendo la distinzione tra peso dati e peso indici.
 
 Riassumendo i dati abbiamo quindi la seguente tabella:
 
@@ -410,14 +410,6 @@ FINE
 ############################################################
 ############################################################
 
-
-(Errori sui dati esportati da segnalare a Diego)
-
-?18 -> 718
-;18 -> 318
-;07 -> 307
-;14 -> 314
-57: -> 578
 
 Link che confronta InfluxDB VERSIONE UNO con PostgreSQL, valutare se prenderne spunto: https://portavita.github.io/2018-07-31-blog_influxdb_vs_postgresql
 
