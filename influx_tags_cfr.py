@@ -20,15 +20,24 @@ query_api = client.query_api()
 client.api_client.configuration.timeout = 5*60*1000
 
 query = '''
-from(bucket:"bigdata_cfr3")
-|> range(start: 2023-11-01T00:00:00Z, stop: 2023-11-10T23:59:59Z)
+from(bucket:"bigdata_cfr5")
+|> range(start: 2023-10-01T00:00:00Z, stop: 2023-10-30T23:59:59Z)
 |> filter(fn:(r) => r._measurement == "de")
 |> drop(columns: ["_start", "_stop"])
 |> group(columns: ["block_id"])
-|> aggregateWindow(every: 1w, fn: mean)
-// |> group()
-|> keep(columns: ["_time", "route_id", "trip_id", "stop_id", "_value"])
+|> aggregateWindow(every: 1mo, fn: mean, createEmpty: false)
+|> group()
+|> keep(columns: ["_time", "block_id", "_value"])
 '''
+query = '''
+from(bucket:"bigdata_cfr5")
+|> range(start: 2023-10-01T00:00:00Z, stop: 2023-10-30T23:59:59Z)
+|> filter(fn:(r) => r._measurement == "de")
+|> drop(columns: ["_start", "_stop"])
+|> keep(columns: ["_time", "block_id", "_value"])
+'''
+# |> group(columns: ["route_id", "trip_id", "stop_id"])
+# |> keep(columns: ["_time", "route_id", "trip_id", "stop_id", "_value"])
 
 write_time_start = time.perf_counter()
 results = query_api.query(query=query, org=org)
