@@ -3,36 +3,36 @@ Progetto d'esame per Big Data AA 2022/2023 - Matricola VR457811
 
 ## Introduzione e contesto
 
-Quella che segue è una relazione che confronta le prestazioni nella gestione di un numero significativo di dati in due diversi tipi di database: PostgreSQL e InfluxDB; e lo fa basandosi su un confronto nell'utilizzo reale degli stessi nel contesto di seguito descritto.
+Quella che segue è una relazione che confronta le prestazioni nella gestione di un numero significativo di dati in due diverse tipologie di database: PostgreSQL e InfluxDB, L'analisi si basa su un confronto nell'utilizzo reale degli stessi nel contesto di seguito descritto.
 
 Trattandosi di due database profondamente diversi ed essendo InfluxDB poco conosciuto vedremo anche gli aspetti principali della sua architettura e del suo funzionamento.
 
-La parte implementativa e di analisi si concentra sul salvataggio e sulla rielaborazione di dati di tipo temporale e più nello specifico dati relativi alla registrazione dei passaggi a fermata dei mezzi di trasporto pubblico di una città italiana di medie dimensioni. L'idea nasce come ipotetica estensione delle funzionalità di un sistema AVM (Automatic Vehicle Monitoring) realizzato dal sottoscritto in ambito lavorativo. Tale sistema riceve i dati grezzi da un sistema GPS presente a bordo di ogni autobus e fornisce le seguenti funzionalità:
+La parte implementativa e di analisi si concentra sul salvataggio e sulla rielaborazione di dati di tipo temporale, più nello specifico dati relativi alla registrazione dei passaggi a fermata dei mezzi di trasporto pubblico di una città italiana di medie dimensioni. L'idea nasce come ipotetica estensione delle funzionalità di un sistema AVM (Automatic Vehicle Monitoring) realizzato dal sottoscritto in ambito lavorativo. Tale sistema riceve i dati grezzi da un apparato GPS presente a bordo di ogni autobus e fornisce le seguenti funzionalità:
 - verifica che il mezzo sia correttamente sul percorso a lui assegnato
-- riconosce il passaggio a fermata, ovvero l'azione di passaggio accanto ad ogni fermata designata e con eventuale fermata del mezzo per far salire e scendere i passeggeri
+- riconosce il passaggio a fermata, ossia l'azione di passaggio accanto ad ogni fermata designata e con eventuale fermata del mezzo per far salire e scendere i passeggeri
 - calcola il ritardo/anticipo del mezzo rispetto alla tabella di marcia per la corsa a cui è assegnato
 - memorizza una serie di dati:
   - i segnali grezzi ricevuti dal mezzo
   - i segnali rielaborati con l'aggiunta di indicazioni sullo stato del mezzo (corsa assegnata, prossima fermata, anticipo/ritardo, passeggeri a bordo, eccetera)
-  - i dati di passaggio per la reportistica, ovvero per la produzione di report mensili che l'azienda deve consegnare al comune per ricevere una compensazione economica dipendente dalla qualità del servizio effettuato
+  - i dati di passaggio per la reportistica, ovvero per la produzione di report mensili che l'azienda deve consegnare al comune per ricevere un compenso economico variabile in base alla qualità del servizio effettuato
 
-Ogni record di questo ultimo tipo rappresenta una _stop call_, termine usato nel mondo delle TVM per indicare nello specifico una fermata effettuata da un mezzo che sta servendo una determinata corsa su una determinata linea, si tratta di dati che è importante memorizzare a fini reportistici in quanto l'azienda se ne serve per farsi rimborsare dal Comune in base alla qualità del servizio. Solitamente vengono generati dei report su base mensile ma i dati devono persistere per anni in quanto devono rimanere disponibili in caso di richiesta del sistema giudiziario per analizzare incidenti o per l'azienda stessa per un'analisi del servizio effettuato.
+Ogni record di questo ultimo tipo rappresenta una _stop call_, termine usato nel mondo delle TVM per indicare nello specifico una fermata effettuata da un mezzo che sta servendo una determinata corsa su una determinata linea, si tratta di dati importanti da memorizzare a fini reportistici in quanto l'azienda li utilizza per quantificare il rimborso spettante dal Comune in base alla qualità del servizio. Solitamente vengono generati dei report su base mensile ma i dati devono persistere per anni in quanto devono rimanere disponibili in caso di richiesta da parte del sistema giudiziario, nel caso in cui accadesse un incidente e fosse necessario svolgere delle indagini o più semplicemente l'azienda stessa necessitasse di svolgere un'analisi Interna sul servizio effettuato.
 
 Uno dei punti critici del sistema sviluppato riguarda proprio il salvataggio e la rielaborazione dei dati di reportistica in quanto si tratta di una grandissima quantità di dati da leggere, scrivere e rielaborare. Per dare un'idea più chiara, se in una piccola città sono previste 400 corse al giorno ed ognuna ha mediamente 30 fermate il sistema deve memorizzare 12000 record giornalieri di questo tipo; considerate 20 ore di servizio si tratta di una _stop call_ ogni 6 secondi in media ed un milione di record ogni tre mesi.
 
 Attualmente i limiti riscontrati a livello di prestazioni del database PostgreSQL utilizzato per tale sistema sono stati parzialmente aggirati salvando oltre ai dati dettagliati alcune statistiche pre-calcolate sul breve periodo basandosi su dati che vengono tenuti in RAM.
 
-Una funzionalità che **non** è presente nel sistema e che ho ritenuto interessante come spunto per il confronto soggetto di questo esame è l'analisi dei dati memorizzati per l'individuazione di deviazioni tra i passaggi a fermata previsti secondo la pianificazione ed i passaggi registrati nella realtà di ogni giorno. Un'analisi di questo tipo richiede la rielaborazione di un grande numero di record.
+Una caratteristica assente nel sistema, e che ho considerato intrigante come punto di partenza per il confronto oggetto di questa relazione, è l'analisi dei dati archiviati per individuare eventuali discrepanze ricorrenti tra l'orario delle fermate programmate e l'orario effettivo di passaggio nella realtà quotidiana. Un'analisi di questo tipo richiede la rielaborazione di un grande numero di record.
 
 ## Obiettivo delle query
 
-L'obiettivo è la creazione di statistiche che sarebbero utili all'azienda cliente, in un'ipotetica messa in produzione del codice qui sviluppato, per correggere e migliorare le tabelle di passaggi a fermata che gli autobus devono rispettare. 
+L'obiettivo è la creazione di statistiche che risultino utili all'azienda cliente, in caso di un'effettiva implementazione nel sistema originale, per fornire informazioni utili per la correzione ed ottimizzazione delle tabelle relative ai passaggi a fermata che gli autobus devono seguire.
 
-Vengono analizzate le prestazioni dei due database sia in fase di salvataggio che di interrogazione. Le prestazioni dipendono chiaramente da un grande numero di variabili e da una natura diversa dei database stessi ma si è cercato di mettere i due sistemi nelle medesime condizioni di lavoro.
+Vengono analizzate le prestazioni dei due database sia in fase di salvataggio che di interrogazione. Le prestazioni dipendono chiaramente da un grande numero di variabili e da una natura diversa dei database stessi, è stato fatto il possibile per porre entrambi i sistemi nelle stesse condizioni operative.
 
 ## Limiti di questa analisi prestazionale
 
-I due database confrontati non differiscono solo nella struttura (relazionale vs time-series) e nell'obiettivo (dati generici vs serie temporali) ma anche nell'architettura di base. Mentre PostgreSQL viene eseguito solitamente come mono-istanza in locale, sulla macchina che ospita anche gli altri servizi o al massimo su una macchina dedicata, InfluxDB nasce come sistema di memorizzazione in cloud ed è fortemente orientato a tale scenario di utilizzo. Per questo progetto, tuttavia, è stata utilizzata una versione installabile in locale per poter confrontare le prestazioni a parità di risorse hardware ed in un ambiente il più possibile controllato. Questo toglie ad InfluxDB parte dei suoi vantaggi.
+I due database confrontati non differiscono solo nella struttura dei dati (relazionale vs time-series) e nell'obiettivo (dati generici vs serie temporali) ma anche nell'architettura di base. Mentre PostgreSQL viene eseguito solitamente come mono-istanza in locale, sulla macchina che ospita anche gli altri servizi o al massimo su una macchina dedicata, InfluxDB nasce come sistema di memorizzazione cloud-oriented. Per questo progetto, tuttavia, è stata utilizzata una versione installabile in locale per poter confrontare le prestazioni a parità di risorse hardware ed in un ambiente il più possibile controllato. Questo toglie ad InfluxDB parte dei suoi vantaggi.
 
 ## Cenni teorici su InfluxDB
 Iniziamo da una spiegazione del funzionamento di InfluxDB, il sistema meno conosciuto tra i due a confronto.
@@ -41,7 +41,7 @@ Si tratta di un DBMS scritto prevalentemente in Go che utilizza i Time Structure
 
 A differenza della maggior parte dei database, in InfluxDB è possibile raggruppare i dati per funzioni di aggregazione senza perderne il dettaglio ed è possibile, dopo un raggruppamento, espandere nuovamente i risultati ed applicare un differente raggruppamento. Offre anche una serie di funzioni comode per la manipolazione temporale dei dati, ad esempio l'aggregazione per finestre temporali.
 
-L'interfaccia tra utilizzatore ed engine è di tipo web tramite delle RESTful API per i programmi ed una pagina di gestione via web per l'accesso diretto degli utenti. Si tratta, quest'ultima, di un'interfaccia molto curata che consente anche la composizione guidata di query e la visualizzazione dei risultati sotto forma di grafici. Per questo progetto tuttavia ho utilizzato un programma in Python.
+L'interfaccia tra utilizzatore ed engine è di tipo web ed è implementata tramite delle RESTful API per i programmi, è presente inoltre una pagina di gestione via web per l'accesso diretto degli utenti. Quest'ultima risulta un'interfaccia molto curata che consente anche la composizione guidata di query e la visualizzazione dei risultati sotto forma di grafici. Per questo progetto tuttavia ho utilizzato degli script in Python.
 
 La memorizzazione di nuovi dati su InfluxDB segue due fasi distinte: la scrittura in file WAL che fungono da buffer e la scrittura nel database vero e proprio. Per questo motivo gli autori di InfluxDB consigliano, per sistemi in produzione e con alti requisiti di performance, di avere la cartella dei database e la cartella degli WAL su due volumi fisici separati ottimizzando così il throughput dei dati sul disco. Con la versione 2.X di InfluxDB l'engine sfrutta come accennato una tecnologia chiamata Time-Structured Merge Tree (TSM) che organizza i dati su disco in un formato colonnare e, negli stessi files, gli indici.
 
@@ -51,7 +51,7 @@ Da sottolineare, in InfluxDB non esiste l'operazione di _update_ dei dati.
 
 ## Tecnologie usate
 
-Il progetto è realizzato in Python 3.x, utilizza python-influxdb e psycopg2 per l'esecuzione dei salvataggi e delle interrogazioni rispettivamente in InfluxDB ed in PostgreSQL. I dati provengono da un database utilizzato realmente in una città italiana di piccole dimensioni, sono stati esportati tramite la creazione di file sql che sono stati letti e travasati, tramite due script separati, nei database di destinazione. I due script condividono la maggior parte del codice e differiscono per la sola parte legata allo specifico database di destinazione.
+Il progetto è realizzato in Python 3.x, utilizza python-influxdb e psycopg2 per l'esecuzione dei salvataggi e delle interrogazioni rispettivamente in InfluxDB ed in PostgreSQL. I dati provengono da un database utilizzato realmente in una città italiana di piccole dimensioni, sono stati esportati tramite la creazione di file sql che sono stati letti ed esportati, tramite due script separati, nei database di destinazione. I due script condividono la maggior parte del codice e differiscono per la sola parte legata allo specifico database di destinazione.
 
 ## Configurazione software/hardware e nota sulle prestazioni
 
@@ -60,7 +60,7 @@ Qualunque dato prestazionale presente in questo documento si riferisce all'esecu
 Il sistema operativo è GNU/Linux, per maggior precisione una distro Arch.
 
 ## Descrizione dell'organizzazione dei dati
-Siccome InfluxDB nasce per gestire serie temporali e non altro, la maggior parte dei dati richiedono il salvataggio in un database di appoggio che può essere proprio PostgreSQL. Mentre PostgreSQL può essere l'unico database utilizzato per raggiungere l'obiettivo nel caso di InfluxDB si avrà invece la coesistenza dei due database, uno utilizzato per la memorizzazione di tutti i dati non temporali ed uno utilizzato per questi ultimi. Non esistono vincoli specifici che impediscono il salvataggio di anagrafiche in InfluxDB ma è un tipo di dati perfetto per un database relazionale e non timeseries-oriented.
+Siccome InfluxDB nasce per gestire serie temporali e non altro, la maggior parte dei dati richiedono il salvataggio in un database di appoggio che può essere proprio PostgreSQL. Mentre PostgreSQL può essere l'unico database utilizzato per raggiungere l'obiettivo, nel caso di InfluxDB si avrà invece la coesistenza dei due database, uno utilizzato per la memorizzazione di tutti i dati non temporali ed uno utilizzato per questi ultimi. Non esistono vincoli specifici che impediscono il salvataggio di anagrafiche in InfluxDB ma è un tipo di dati perfetto per un database relazionale e non timeseries-oriented.
 
 In questo progetto si immagina quindi di avere le anagrafiche di fermate, linee e quant'altro residenti in tabelle PostgreSQL dedicate che non vengono però implementate per evitare che ciò interferisca con le query in esame e perché superfluo ai fini dell'analisi. La struttura del database PostgreSQL da cui sono stati estratti i dati ha le seguenti colonne:
 
@@ -117,9 +117,9 @@ La quantità di record da inserire cambia in base al database, questo è dovuto 
 - passeggeri saliti
 - passeggeri scesi
 
-In PostgreSQL questi (eventualmente) tre dati vengono inseriti in un unico record mentre in InfluxDB vengono inseriti come tre diversi datapoints. Già in questo vediamo una differenza sostanziale in uno scenario di utilizzo in real time di uno e dell'altro database: con InfluxDB ogni dato che arriva dal campo si trasforma in un punto da inserire, con PostgreSQL ogni dato si trasforma invece in una _insert or update_. L'alternativa, per quanto riguarda PostgreSQL, è scegliere un momento in cui il sistema è scarico e preparare preventivamente tutti i record che dovranno ospitare i dati in arrivo durante la giornata, così da evitare le _insert or update_ ed effettuare solo degli _update_. Naturalmente è possibile strutturare la tabella in PostgreSQL in modo che ospiti una colonna _field_ ed una _value_ assumendo un aspetto più simile al bucket in InfluxDB ma questo sembra meno naturale per un database relazionale.
+In PostgreSQL questi (eventualmente) tre dati vengono inseriti in un unico record mentre in InfluxDB vengono inseriti come tre diversi datapoints. Già in questo vediamo una differenza sostanziale relativa allo scenario di utilizzo in real time di uno e dell'altro database: con InfluxDB ogni dato che arriva dal campo si trasforma in un punto da inserire, con PostgreSQL ogni dato si trasforma invece in una _insert or update_. L'alternativa, per quanto riguarda PostgreSQL, è scegliere un momento in cui il sistema è scarico e preparare preventivamente tutti i record che dovranno ospitare i dati in arrivo durante la giornata, così da evitare le _insert or update_ ed effettuare solo degli _update_. Naturalmente è possibile strutturare la tabella in PostgreSQL in modo che ospiti una colonna _field_ ed una _value_ assumendo un aspetto più simile al bucket in InfluxDB ma questo sembra meno naturale per un database relazionale.
 
-I dati provengono da sei diversi file con estensione .sql di circa 500mb ciascuno, le tempistiche di inserimento sono state le seguenti:
+I dati provengono da sei diversi file con estensione .sql di circa 500mb ciascuno, le tempistiche di inserimento sono state le seguenti. Qualunque tempistica in questa relazione è espressa nel formato h:mm:ss.sss
 
 <table style="border-spacing: 3px;border-collapse: separate">
   <thead>
@@ -206,14 +206,14 @@ Questa query è stata creata in due versioni diverse e lanciata in entrambe le v
 Le query eseguite in PostgreSQL per ottenere i dati sono le seguenti:
 
 (Con raggruppamento)
-```
+```sql
 select DATE_TRUNC('month', datetime) AS month, route_id, trip_id, stop_id, avg(delay) from bigdata_project
 where day_of_service > '2020-09-10' and day_of_service < '2022-03-12' and delay is not null
 group by month, route_id, trip_id, stop_id
 ```
 
 (Senza raggruppamento)
-```
+```sql
 select route_id, trip_id, stop_id, avg(delay) from bigdata_project
 where day_of_service > '2020-09-10' and day_of_service < '2021-10-12' and delay is not null
 group by route_id, trip_id, stop_id
@@ -222,7 +222,7 @@ group by route_id, trip_id, stop_id
 Per quanto riguarda InfluxDB invece sono le seguenti:
 
 (Con raggruppamento)
-```
+```js
 from(bucket:"bigdata_project2")
 |> range(start: 2020-09-11T00:00:00Z, stop: 2021-03-11T23:59:59Z)
 |> filter(fn:(r) => r._measurement == "de")
@@ -234,7 +234,7 @@ from(bucket:"bigdata_project2")
 ```
 
 (Senza raggruppamento)
-```
+```js
 from(bucket:"bigdata_project2")
 |> range(start: 2020-09-11T00:00:00Z, stop: 2020-10-11T23:59:59Z)
 |> filter(fn:(r) => r._measurement == "de")
@@ -245,7 +245,7 @@ from(bucket:"bigdata_project2")
 |> keep(columns: ["_time", "route_id", "trip_id", "stop_id", "_value"])
 ```
 
-I tempi perché il processo in Python ottenesse la lista completa di risultati sono espressi nel formato h:mm:ss.sss. Queste tempistiche sono state ottenute dopo l'inserimento nei database del primo file di dati:
+I tempi perché il processo in Python ottenesse la lista completa di risultati sono i seguenti e sono stati ottenuti dopo l'inserimento nei database del primo file di dati:
 
 <table style="border-spacing: 3px;border-collapse: separate">
   <thead>
@@ -375,13 +375,13 @@ Da questa tabella possiamo dedurre diverse cose:
 - una query che lavora sullo stesso numero di dati nello stesso periodo ma utilizza solo un tag con cardinalità minore impiega un tempo decisamente minore, come si vede confrontando i raggruppamenti per block e per route, trip e stop su IN2 o su IN3
 - una query che lavora sullo stesso numero di dati nello stesso periodo ma su un bucket che non possiede un'elevata cardinalità è estremamente più performante, come si vede dalle query per block su IN4 e IN5 rispetto a IN2 e IN3
 
-In particolare, la query su IN5 è l'unica query in InfluxDB più performante delle query su PostgreSQL, a parità di dati memorizzati. Nel caso non siano presenti molti tag e la cardinalità sia limitata InfluxDB riesce quindi ad essere più performante di PostgreSQL anche in lettura mentre quando i tag e/o la loro cardinalità aumentano le prestazioni in lettura di InfluxDB degradano molto più velocemente di quelle di PostgreSQL.
+In particolare, la query su IN5 è l'unica query in InfluxDB più performante delle query su PostgreSQL, a parità di dati memorizzati. Nel caso non siano presenti molti tag e la cardinalità sia limitata, InfluxDB riesce ad essere più performante di PostgreSQL anche in lettura mentre quando i tag e/o la loro cardinalità aumentano le prestazioni in lettura di InfluxDB degradano molto più velocemente di quelle di PostgreSQL.
 
 ### Occupazione spazio su disco
 
 Per visualizzare in ambiente linux la dimensione dei vari buckets possiamo semplicemente eseguire un comando simile a `du -sh /home/vncnz/.influxdbv2/engine/data/* | sort -hr` ottenendo un output simile al seguente (l'indicazione del bucket è stata aggiunta a posteriori):
 
-```
+```sql
 4,7G    /home/vncnz/.influxdbv2/engine/data/b77778300c262ad4 --> bucket completo
 879M    /home/vncnz/.influxdbv2/engine/data/2e65568d31d832e4 --> bucket ridotto(IN3)
 697M    /home/vncnz/.influxdbv2/engine/data/f786e5d253b98a85 --> bucket ridotto(IN2)
@@ -411,14 +411,14 @@ Confrontando il bucket IN4 con quelli delle altre modalità è evidente come il 
 
 
 ## Una soluzione alla lentezza del recupero dati di InfluxDB: i task
-Abbiamo visto come in presenza di un'alta cardinalità le query per la lettura e  manipolazione dei dati abbiano tempi di esecuzione non sostenibili. InfluxDB ha però una funzionalità particolare che può essere utile anche (ma non solo) per questo problema. I task sono uno strumento di "ingestione" dei dati, consentono di effettuare calcoli, analisi e/o aggregazioni sui dati di un bucket scrivendo i risultati in un altro bucket in modo che siano già pronti all'uso, senza la necessità di eseguire query di aggregazione on-the-fly. I task possono inoltre attivare automaticamente notifiche al verificarsi di determinate condizioni o interfacciarsi a strumenti esterni, ad esempio convertendo i risultati in json ed inviandoli automaticamente tramite una chiamata http. Vengono eseguiti in modalità automatica in base a tempistiche configurabili, ad esempio ogni tot tempo. Tornando alla nostra query di prova "Ritardo medio fermata" un task potrebbe essere eseguito ogni settimana e scrivere su un bucket di destinazione la riga contenente i risultati dell'aggregazione dei dati dell'ultima settimana, query che ci possiamo aspettare impiegare pochi secondi (abbiamo visto i tempi su un mese, un periodo lungo quattro volte tanto). Considerato che come abbiamo potuto vedere InfluxDB soffre quando si lavora su intervalli temporali lunghi ma scala bene al crescere della quantità di dati l'esecuzione periodica di un task non soffre del continuo accumulo di dati sul database e può svolgere un'aggregazione dei dati settimanali in maniera efficiente. I task vengono utilizzati dall'engine stesso anche per la pulizia dei dati obsoleti secondo policy di data retention definibili separatamente sui singoli bucket. Queste operazioni di pulizia sono un'altra funzionalità innata di InfluxDB e viene effettuata in maniera efficiente in quanto i dati sono organizzati in "pacchetti" su base temporale. Nella versione cloud del DBMS questi "pacchetti" vengono anche sparsi su macchine diverse bilanciando il più possibile il carico di lavoro della singola macchina, per cui una query che può risultare eccessivamente lenta per la versione installabile in locale può non creare alcun rallentamento nella versione cloud se i dati provengono da più nodi.
+Abbiamo visto come in presenza di un'alta cardinalità le query per la lettura e  manipolazione dei dati abbiano tempi di esecuzione non sostenibili. InfluxDB ha però una funzionalità particolare che può essere utile anche (ma non solo) per questo problema. I task sono uno strumento di "ingestione" dei dati, consentono di effettuare calcoli, analisi e/o aggregazioni sui dati di un bucket scrivendo i risultati in un altro bucket in modo che siano già pronti all'uso, senza la necessità di eseguire query di aggregazione on-the-fly. I task possono inoltre attivare automaticamente notifiche al verificarsi di determinate condizioni o interfacciarsi a strumenti esterni, ad esempio convertendo i risultati in json ed inviandoli automaticamente tramite una chiamata http. Vengono eseguiti in modalità automatica in base a tempistiche configurabili, ad esempio ad ogni intervallo temporale prefissato a partire dal primo dato. Tornando alla nostra query di prova "Ritardo medio fermata" un task potrebbe essere eseguito ogni settimana e scrivere su un bucket di destinazione la riga contenente i risultati dell'aggregazione dei dati dell'ultima settimana, query che ci possiamo aspettare impiegare pochi secondi (abbiamo visto i tempi su un mese, un periodo lungo quattro volte tanto). Considerato che come abbiamo potuto vedere InfluxDB soffre quando si lavora su intervalli temporali lunghi ma scala bene al crescere della quantità di dati l'esecuzione periodica di un task non soffre del continuo accumulo di dati sul database e può svolgere un'aggregazione dei dati settimanali in maniera efficiente. I task vengono utilizzati dall'engine stesso anche per la pulizia dei dati obsoleti secondo policy di data retention definibili separatamente sui singoli bucket. Queste operazioni di pulizia sono un'altra funzionalità innata di InfluxDB e viene effettuata in maniera efficiente in quanto i dati sono organizzati in "pacchetti" su base temporale. Nella versione cloud del DBMS questi "pacchetti" vengono anche sparsi su macchine diverse bilanciando il più possibile il carico di lavoro della singola macchina, per cui una query che può risultare eccessivamente lenta per la versione installabile in locale può non creare alcun rallentamento nella versione cloud se i dati provengono da più nodi.
 
 ## L'alternativa PostgreSQL ai task di InfluxDB: pgAgent
-Anche per PostgreSQL esiste la possibilità di eseguire automaticamente alcune operazioni tramite un'estensione chiamata pgAgent, che offre una configurabilità un poco minore: manca ad esempio la possibilità di rimandare un'esecuzione se è ancora in corso la precedente o di eseguirla in ritardo ma considerando il datetime precedente al riinvio. pgAgent inoltre, per il contesto di utilizzo visto, non risolve il problema del rallentamento dovuto alla crescita della tabella su cui deve lavorare e rimanda al sistemista la configurazione di un partizionamento orizzontale e quant'altro possa essere necessario per riuscire a gestire i dati.
+Anche per PostgreSQL esiste la possibilità di eseguire automaticamente alcune operazioni tramite un'estensione chiamata pgAgent, che offre una configurabilità leggermente inferiore al competitor: manca ad esempio la possibilità di rimandare un'esecuzione se è ancora in corso la precedente o di eseguirla in ritardo ma considerando il datetime precedente al riinvio. pgAgent inoltre, per il contesto di utilizzo visto, non risolve il problema del rallentamento dovuto alla crescita della tabella su cui deve lavorare e rimanda al sistemista la configurazione di un partizionamento orizzontale e quant'altro possa essere necessario per riuscire a gestire i dati.
 
 ## Considerazioni finali
 
-Con questa relazione e questi esperimenti si è voluto evidenziare aspetti positivi e negativi di InfluxDB, un DBMS poco conosciuto e con un orientamento ben preciso, confrontandolo con un DBMS molto conosciuto e più general-purpose. PostgreSQL è un ottimo DBMS che gestisce una vasta gamma di tipi di dato, può addirittura gestire query spaziali con operazioni di intersezione, inclusione ed altro. Nelle ultime versioni è in grado di lavorare con efficienza anche su dati json, andando in competizione (parziale, almeno) anche con sistemi non relazionali come MongoDB. Abbiamo però visto che per determinati contesti ha senso esplorare sistemi alternativi, ad esempio per la gestione di serie temporali che crescono velocemente e per le quali ci può essere necessità di mantenere i dati per un lungo periodo di tempo ma c'è una bassa cardinalità dei dati correlati a ciascun valore della serie.
+Con questa relazione ed i test svolti si è voluto evidenziare aspetti positivi e negativi di InfluxDB, un DBMS poco conosciuto e con una focalizzazione sulle serie temporali, confrontandolo con un DBMS molto conosciuto e più general-purpose. PostgreSQL è un ottimo DBMS che gestisce una vasta gamma di tipi di dato, può addirittura gestire query spaziali con operazioni di intersezione, inclusione ed altro. Nelle ultime versioni è in grado di lavorare con efficienza anche su dati json, andando in competizione (parziale) anche con sistemi non relazionali come MongoDB. Abbiamo però visto che per determinati contesti ha senso esplorare sistemi alternativi, ad esempio nella gestione di serie temporali che mostrano una crescita rapida e richiedono la conservazione prolungata dei dati a patto che ci sia una bassa cardinalità dei dati correlati a ciascun valore della serie.
 
 
 
