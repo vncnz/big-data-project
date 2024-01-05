@@ -88,11 +88,11 @@ In questo progetto si immagina quindi di avere le anagrafiche di fermate, linee 
 
 I dati marcati con un check sono stati implementati in questo progetto e quindi travasati, gli altri dati sono stati esclusi perché considerati non utili ai fini del confronto prestazionale tra i database. Alcuni di questi ultimi sono strettamente legati al funzionamento del sistema di provenienza (ad esempio i flag _served_ e _fake_), allo studio di eventuali bug (ad esempio _creation_timestamp_) e/o a politiche economiche legate al cliente per cui il sistema è stato implementato (i campi _quality_, _shape_dist_traveled_ ed altri).
 
-### [Descrizione della base dati postgres]
+### Descrizione della base dati postgres
 Per l'implementazione in PostgreSQL è stata creata una tabella con i dati sopra indicati. Per ciascuna _stop call_ sono presenti in un unico record delay, psg_up e psg_down (se esistenti, NULL altrimenti).
 Sono stati creati degli indici per le colonne relative a trip, stop, block, day_of_service, route.
 
-### [Descrizione della base dati influxdb]
+### Descrizione della base dati influxdb
 Per l'implementazione in InfluxDB è stato utilizzato un bucket con i seguenti elementi:
 - (_time) timestamp: ora del passaggio o dell'orario previsto
 - (_measurement) measurement: "psg_up" (passeggeri saliti) / "psg_down" (passeggeri scesi) / "delay" (ritardo)
@@ -198,7 +198,7 @@ I dati provengono da sei diversi file con estensione .sql di circa 500mb ciascun
 
 ## Estrazione dei dati e prestazioni di select
 
-## Ritardo medio fermata
+## Prima query: Ritardo medio fermata
 La prima query per testare e confrontare le prestazioni tra i due database in esame riguarda il calcolo del ritardo medio per ciascuna corsa in ciascuna fermata in un certo periodo di tempo.
 
 Questa query è stata creata in due versioni diverse e lanciata in entrambe le versioni su periodi di uno, tre e sei mesi. Le due versioni differiscono tra loro per l'assenza o la presenza di un raggruppamento su base mensile.
@@ -415,6 +415,53 @@ Abbiamo visto come in presenza di un'alta cardinalità le query per la lettura e
 
 ## L'alternativa PostgreSQL ai task di InfluxDB: pgAgent
 Anche per PostgreSQL esiste la possibilità di eseguire automaticamente alcune operazioni tramite un'estensione chiamata pgAgent, che offre una configurabilità leggermente inferiore al competitor: manca ad esempio la possibilità di rimandare un'esecuzione se è ancora in corso la precedente o di eseguirla in ritardo ma considerando il datetime precedente al riinvio. pgAgent inoltre, per il contesto di utilizzo visto, non risolve il problema del rallentamento dovuto alla crescita della tabella su cui deve lavorare e rimanda al sistemista la configurazione di un partizionamento orizzontale e quant'altro possa essere necessario per riuscire a gestire i dati.
+
+## Seconda query: Media dei passeggeri saliti per fermata
+La seconda query per testare e confrontare le prestazioni tra i due database in esame riguarda il calcolo del numero medio di passeggeri saliti per ciascuna fermata in un certo periodo di tempo.
+
+Le query eseguite in PostgreSQL ed in InfluxDB per ottenere i dati sono le seguenti:
+
+```sql
+select DATE_TRUNC('month', datetime) AS month, extract(dow from datetime) as weekday, stop_id, avg(psg_up) from bigdata_project
+where day_of_service > '2020-09-10' and day_of_service < '2020-10-12' and psg_up is not null
+group by month, weekday, stop_id
+```
+
+```js
+import "date"
+
+from(bucket:"bigdata_project2")
+|> range(start: 2020-09-11T00:00:00Z, stop: 2020-10-11T23:59:59Z)
+|> filter(fn:(r) => r._measurement == "up")
+|> drop(columns: ["_start", "_stop"])
+|> map(fn: (r) => {
+      day = date.weekDay(t: r._time)
+      return {r with weekday: day}
+    })
+|> group(columns: ["stop_id", "weekday"])
+|> aggregateWindow(every: 1mo, fn: mean)
+|> keep(columns: ["_time", "stop_id", "weekday", "_value", "_start", "_stop"])
+```
+
+I tempi perché il processo in Python ottenesse la lista completa di risultati sono i seguenti e sono stati ottenuti dopo l'inserimento nei database di tutti i dati a disposizione:
+
+<table style="border-spacing: 3px;border-collapse: separate">
+  <thead>
+    <tr>
+      <th></th>
+      <th colspan="3" style="border-bottom:1px solid red">PostgreSQL (PG2)</th>
+      <th colspan="3" style="border-bottom:1px solid green">InfluxDB (IN2)</th>
+      <th colspan="3" style="border-bottom:1px solid green">InfluxDB (IN4)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>0:00:01.210025</td><td>0:01:03.521774</td><td>0:00:10.668793</td>
+    </tr>
+  </tbody>
+</table>
+
+Questi risultati sono coerenti con le analisi fatte in maniera approfondita con la prima query. Il bucket IN4 ha infatti una cardinalità molto minore del bucket IN2 e questo si vede nel tempo necessario per ottenere i risultati. PostgreSQL riesce in ogni caso a produrre i risultati in un tempo minore.
 
 ## Considerazioni finali
 
