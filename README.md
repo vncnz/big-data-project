@@ -1,5 +1,4 @@
-# big-data-project
-Progetto d'esame per Big Data AA 2022/2023 - Matricola VR457811
+# Progetto d'esame per Big Data AA 2022/2023 - Matricola VR457811
 
 ## Introduzione e contesto
 
@@ -16,7 +15,7 @@ La parte implementativa e di analisi si concentra sul salvataggio e sulla rielab
   - i segnali rielaborati con l'aggiunta di indicazioni sullo stato del mezzo (corsa assegnata, prossima fermata, anticipo/ritardo, passeggeri a bordo, eccetera)
   - i dati di passaggio per la reportistica, ovvero per la produzione di report mensili che l'azienda deve consegnare al comune per ricevere un compenso economico variabile in base alla qualità del servizio effettuato
 
-Ogni record di questo ultimo tipo rappresenta una _stop call_, termine usato nel mondo delle TVM per indicare nello specifico una fermata effettuata da un mezzo che sta servendo una determinata corsa su una determinata linea, si tratta di dati importanti da memorizzare a fini reportistici in quanto l'azienda li utilizza per quantificare il rimborso spettante dal Comune in base alla qualità del servizio. Solitamente vengono generati dei report su base mensile ma i dati devono persistere per anni in quanto devono rimanere disponibili in caso di richiesta da parte del sistema giudiziario, nel caso in cui accadesse un incidente e fosse necessario svolgere delle indagini o più semplicemente l'azienda stessa necessitasse di svolgere un'analisi Interna sul servizio effettuato.
+Ogni record di questo ultimo tipo rappresenta una _stop call_, termine usato nel'ambito del trasporto pubblico per indicare nello specifico una fermata effettuata da un mezzo che sta servendo una determinata corsa su una determinata linea, si tratta di dati importanti da memorizzare a fini reportistici in quanto l'azienda li utilizza per quantificare il rimborso spettante dal Comune in base alla qualità del servizio. Solitamente vengono generati dei report su base mensile ma i dati devono persistere per anni in quanto devono rimanere disponibili in caso di richiesta da parte del sistema giudiziario, nel caso in cui accadesse un incidente e fosse necessario svolgere delle indagini o più semplicemente l'azienda stessa necessitasse di svolgere un'analisi Interna sul servizio effettuato.
 
 Uno dei punti critici del sistema sviluppato riguarda proprio il salvataggio e la rielaborazione dei dati di reportistica in quanto si tratta di una grandissima quantità di dati da leggere, scrivere e rielaborare. Per dare un'idea più chiara, se in una piccola città sono previste 400 corse al giorno ed ognuna ha mediamente 30 fermate il sistema deve memorizzare 12000 record giornalieri di questo tipo; considerate 20 ore di servizio si tratta di una _stop call_ ogni 6 secondi in media ed un milione di record ogni tre mesi.
 
@@ -88,11 +87,11 @@ In questo progetto si immagina quindi di avere le anagrafiche di fermate, linee 
 
 I dati marcati con un check sono stati implementati in questo progetto e quindi travasati, gli altri dati sono stati esclusi perché considerati non utili ai fini del confronto prestazionale tra i database. Alcuni di questi ultimi sono strettamente legati al funzionamento del sistema di provenienza (ad esempio i flag _served_ e _fake_), allo studio di eventuali bug (ad esempio _creation_timestamp_) e/o a politiche economiche legate al cliente per cui il sistema è stato implementato (i campi _quality_, _shape_dist_traveled_ ed altri).
 
-### Descrizione della base dati postgres
+### Descrizione della base dati PostgreSQL
 Per l'implementazione in PostgreSQL è stata creata una tabella con i dati sopra indicati. Per ciascuna _stop call_ sono presenti in un unico record delay, psg_up e psg_down (se esistenti, NULL altrimenti).
 Sono stati creati degli indici per le colonne relative a trip, stop, block, day_of_service, route.
 
-### Descrizione della base dati influxdb
+### Descrizione della base dati InfluxDB
 Per l'implementazione in InfluxDB è stato utilizzato un bucket con i seguenti elementi:
 - (_time) timestamp: ora del passaggio o dell'orario previsto
 - (_measurement) measurement: "psg_up" (passeggeri saliti) / "psg_down" (passeggeri scesi) / "delay" (ritardo)
@@ -302,12 +301,12 @@ Seguono i tempi per le stesse query nelle stesse modalità ma con tutti i dati i
   <tbody>
     <tr>
       <td>Senza</td>
-      <td>0:00:00.622946</td><td>0:00:00.674102</td><td>0:00:02.221006</td>
+      <td>0:00:01.187149</td><td>0:00:01.292565</td><td>0:00:02.221006</td>
       <td>0:00:08.133967</td><td>0:00:12.281949</td><td>0:00:42.795060</td>
     </tr>
     <tr>
       <td>Con</td>
-      <td>0:00:00.934744</td><td>0:00:01.386777</td><td>0:00:05.111580</td>
+      <td>0:00:01.431923</td><td>0:00:01.574078</td><td>0:00:02.353574</td>
       <td>0:00:18.449262</td><td>0:00:30.584004</td><td>0:01:30.440092</td>
     </tr>
   </tbody>
@@ -344,9 +343,8 @@ Per i tag fare riferimento all'elenco qui sopra. Il tempo è sempre nel formato 
 | IN3|0:08:09.947025|4539.57|
 | IN4|0:06:42.864470|5520.83|
 | IN5|0:06:07.548264|6051.31|
-| PG1|0:29:12.295566| 903.65|
-| PG2|0:36:12.246039| 728.95|
-[TODO: Ricontrollare PG1 e PG2...]
+| PG1|0:33:23.441024| 790.37|
+| PG2|0:33:49.539156| 780.21|
 
 All'aumentare del numero di tag diminuisce in maniera non rilevante la velocità di inserimento dei records. In ogni caso è evidente anche da questa prova come la velocità di inserimento dei dati in InfluxDB sia un punto forte dello stesso rispetto a PostgreSQL.
 
@@ -448,10 +446,9 @@ I tempi perché il processo in Python ottenesse la lista completa di risultati s
 <table style="border-spacing: 3px;border-collapse: separate">
   <thead>
     <tr>
-      <th></th>
-      <th colspan="3" style="border-bottom:1px solid red">PostgreSQL (PG2)</th>
-      <th colspan="3" style="border-bottom:1px solid green">InfluxDB (IN2)</th>
-      <th colspan="3" style="border-bottom:1px solid green">InfluxDB (IN4)</th>
+      <th style="border-bottom:1px solid green">PostgreSQL (PG2)</th>
+      <th style="border-bottom:1px solid red">InfluxDB (IN2)</th>
+      <th style="border-bottom:1px solid orange">InfluxDB (IN4)</th>
     </tr>
   </thead>
   <tbody>
