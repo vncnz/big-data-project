@@ -18,14 +18,14 @@ cursor = conn.cursor()
 
 query = '''
 select DATE_TRUNC('month', datetime) AS month, route_id, trip_id, stop_id, avg(delay) from bigdata_project
-where day_of_service > '2020-09-10' and day_of_service < '2022-03-12' and delay is not null
+where datetime > '2020-09-10' and datetime < '2021-03-12' and delay is not null
 group by month, route_id, trip_id, stop_id
 -- limit 100
 '''
 
-queryy = '''
+query_senza_raggruppamento = '''
 select route_id, trip_id, stop_id, avg(delay) from bigdata_project
-where day_of_service > '2020-09-10' and day_of_service < '2021-10-12' and delay is not null
+where day_of_service > '2020-09-10' and day_of_service < '2020-10-12' and delay is not null
 group by route_id, trip_id, stop_id
 -- limit 100
 '''
@@ -49,22 +49,11 @@ def printResultTables(results, cols, max_records):
 
     lengths = []
     for col in cols:
-        # l = col.label in ['_time', '_stop', '_start'] and 18 or 10
         l = col == 'datetime' and 25 or max(10, len(col))
         lengths.append(l)
         print(col.rjust(l), end='  ')
     print('')
     for record in results[:max_records]:
-        # for col in cols:
-        #     dt = record.values.get(col.label)
-        #     if col.data_type == 'dateTime:RFC3339':
-        #         dt = dt.strftime('%Y%m%d@%H:%M:%S')
-        #     if col.label in ['_time', '_stop', '_start']:
-        #         print('%18s' % dt, end='  ')
-        #     else:
-        #         print('%10s' % dt, end='  ')
-        # print('')
-        # print(record)
         for idx, val in enumerate(record):
             print(f'{val}'.rjust(lengths[idx]), end='  ')
         print('')

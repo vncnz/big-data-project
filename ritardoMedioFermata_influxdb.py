@@ -31,9 +31,9 @@ from(bucket:"bigdata_project2")
 |> keep(columns: ["_time", "route_id", "trip_id", "stop_id", "_value"])
 '''
 
-queryy = '''
+query = '''
 from(bucket:"bigdata_project2")
-|> range(start: 2020-09-11T00:00:00Z, stop: 2020-10-11T23:59:59Z) //-3y)
+|> range(start: 2020-09-11T00:00:00Z, stop: 2021-03-11T23:59:59Z)
 |> filter(fn:(r) => r._measurement == "de")
 |> drop(columns: ["_start", "_stop"])
 |> group(columns: ["route_id", "trip_id", "stop_id"])
@@ -90,66 +90,3 @@ def printResultTables(results, max_tables, max_records):
 printResultTables(results, 5, 5)
 print(countResults(results))
 print(f"Query executed in : {timedelta(seconds = diff)} seconds")
-
-exit(0)
-# for el in lst:
-#    print(el)
-
-diz = {}
-for el in lst:
-    if not el[2] in diz:
-        diz[el[2]] = []
-    diz[el[2]].append(el)
-
-for cardlst in diz.values():
-    for el in cardlst:
-        print(el)
-    print('')
-
-exit(0)
-
-print('Query done. Starting plot...')
-
-import matplotlib.pyplot as plt
-import math
-
-
-cols = 4
-figure, axis = plt.subplots(math.ceil(len(results)/cols), cols)
-xx = 0
-yy = 0
-
-xdata = list(range(0, 366))
-
-for table in results:
-
-    dayofyear = [x.values['dayofyear'] for x in table.records]
-    for idx, dt in enumerate(dayofyear):
-        if dt[3:5] == '01' or dt[3:5] == '15':
-            xdata[idx] = dt
-    axis[yy, xx].plot(xdata, [x.values['2019'] for x in table.records], label = "2019")
-    axis[yy, xx].plot(xdata, [x.values['2020'] for x in table.records], label = "2020")
-    tablecols = fltr(table.get_group_key())
-    axis[yy, xx].set_title(', '.join(map(lambda c: '%s=%s' % (c.label, table.records[0][c.label]), tablecols)))
-    axis[yy, xx].legend()
-
-    xx += 1
-    if xx >= cols:
-        xx = 0
-        yy += 1
-
-# naming the x axis
-plt.xlabel('Giorno')
-
-# naming the y axis
-plt.ylabel('Visite')
-
-# giving a title to my graph
-#tablecols = fltr(table.get_group_key())
-#plt.title(', '.join(map(lambda c: '%s=%s' % (c.label, table.records[0][c.label]), tablecols)))
-
-# show a legend on the plot
-plt.legend()
-
-# function to show the plot
-plt.show()

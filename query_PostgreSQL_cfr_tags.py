@@ -18,17 +18,15 @@ cursor = conn.cursor()
 
 query = '''
 select DATE_TRUNC('month', datetime) AS month, block_id, avg(delay) from bigdata_cfr
-where day_of_service > '2023-09-30' and day_of_service < '2023-10-31' and delay is not null
+where datetime > '2023-10-01' and datetime < '2023-10-31' and delay is not null
 group by month, block_id
--- limit 100
 '''
 
-queryy = '''
-select route_id, trip_id, stop_id, avg(delay) from bigdata_project
-where day_of_service > '2020-09-10' and day_of_service < '2021-10-12' and delay is not null
-group by route_id, trip_id, stop_id
--- limit 100
-'''
+# query_senza_raggruppamento = '''
+# select route_id, trip_id, stop_id, avg(delay) from bigdata_project
+# where day_of_service > '2020-09-10' and day_of_service < '2021-10-12' and delay is not null
+# group by route_id, trip_id, stop_id
+# '''
 
 # query = 'select * from bigdata_project limit 1'
 

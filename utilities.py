@@ -1,4 +1,4 @@
-import re, psutil
+import re, psutil, sqlite3
 
 def fileToDict (filename, onlySample=False) -> dict:
 
@@ -181,7 +181,6 @@ def separateRecords (rec):
     if rec['delay'] is not None:
       yield { **newrec, 'field': 'delay', 'value': rec['delay'] }
 
-import sqlite3
 conn = None
 def parse (line):
   conn.execute(line.replace('public.', ''))
