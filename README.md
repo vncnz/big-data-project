@@ -104,38 +104,48 @@ Fields marked with a checkmark were included and migrated in this project, while
 
 The excluded fields are mainly tied to the logic of the original production system (e.g., _served_ and _fake_), used for internal debugging (_creation\_timestamp_), or related to business rules and contractual agreements (such as _quality_, _shape\_dist\_traveled_, etc.).
 
-### Descrizione della base dati PostgreSQL
-Per l'implementazione in PostgreSQL è stata creata una tabella con i dati sopra indicati. Per ciascuna _stop call_ sono presenti in un unico record delay, psg_up e psg_down (se esistenti, NULL altrimenti).
-Sono stati creati degli indici per le colonne relative a trip, stop, block, day_of_service, route.
+### PostgreSQL Database Description
+For the PostgreSQL implementation, a single table was created containing the aforementioned fields. Each stop call is represented by a single record, including delay, psg_up, and psg_down (set to NULL if the data is not available).
 
-### Descrizione della base dati InfluxDB
-Per l'implementazione in InfluxDB è stato utilizzato un bucket con i seguenti elementi:
-- (_time) timestamp: ora del passaggio o dell'orario previsto
-- (_measurement) measurement: "psg_up" (passeggeri saliti) / "psg_down" (passeggeri scesi) / "delay" (ritardo)
+Indexes were created on the following columns to improve query performance: trip_id, stop_id, block_id, day_of_service, route_id.
+
+### InfluxDB Database Description
+For the InfluxDB implementation, a bucket was used with the following structure:
+- (_time) timestamp: the time of the stop event
+- (_measurement) measurement: "psg_up" (passengers boarding) / "psg_down" (passengers alighting) / "delay" (delay in seconds)
 - (tag) schedule_id
 - (tag) block_id
 - (tag) trip_id
 - (tag) stop_id
 - (tag) day_of_service
 - (tag) route_id
-- (_field) "psg_up" (passeggeri saliti) / "psg_down" (passeggeri scesi) / "delay" (ritardo)
-- (_value) numero relativo a _field
+- (_field) "psg_up" / "psg_down" / "delay" (matching the measurement)
+- (_value) numeric value associated with the respective field (e.g., number of passengers or delay)
 
-E' importante ricordare che in InfluxDB solo i tag vengono indicizzati, i valori (_field e _value) non sono indicizzati. Si è scelto quindi di utilizzare il numero di passeggeri saliti/scesi ed il mezzo che ha effettuato la fermata come valori memorizzati ed i vari identificatori della fermata (la fermata fisica, la linea, la corsa, eccetera) come tag.
+It is important to note that in InfluxDB, only tags are indexed; fields and values (_field and _value) are not indexed.
+For this reason, the passenger counts (psg_up, psg_down) and delay were stored as values, while various identifiers (stop, route, trip, etc.) were stored as tags, to ensure faster query performance on those fields.
 
-## Riempimento dei dati e prestazioni di inserimento
-Per entrambi i database c'è la necessità di leggere i dati dai file sql per effettuare poi l'inserimento nel database di destinazione. Siccome i file da cui i dati provengono sono di grandi dimensioni (mediamente 500MB l'uno) il caricamento da file e la scrittura nel database devono avvenire di pari passo.
+## Data Ingestion and Insert Performance
+For both databases, data must be read from SQL files and subsequently inserted into the target database. Since the source files are quite large (approximately 500 MB each), data loading and insertion occur simultaneously, processing data as it is read from the files.
 
-La preparazione dei dati per InfluxDB prevede la creazione, per ogni punto, di un'istanza di una classe fornita dalla libreria, la lettura e preparazione di tutti i dati impiega circa un minuto e venti secondi. La preparazione dei dati per PostgreSQL prevede invece la creazione di query tramite interpolazione di stringhe ed questo invece impiega circa un minuto e dieci secondi. In entrambi i casi questi tempi sono stati presi senza l'inserimento reale dei dati nel rispettivo database ai fini di capirne l'influenza sulle tempistiche totali misurate ma la creazione nella versione finale del codice avviene contestualmente all'inserimento, record per record, non occupando così un quantitativo di RAM degno di nota. Questo è reso necessario dal fatto che volendo testare l'inserimento di un alto numero di record lo spazio occupato dall'esplosione dei dati in RAM non è accettabile.
+For InfluxDB, the data preparation involves creating, for each point, an instance of a class provided by the Python library. Preparing and parsing all the data takes approximately 1 minute and 20 seconds.
+For PostgreSQL, data preparation consists of generating SQL queries through string interpolation, which takes approximately 1 minute and 10 seconds.
+These times were measured excluding the actual database insertion, to isolate the data preparation phase and understand its impact on overall execution time. In the final version of the code, data preparation happens inline with the insertion process, handling one record at a time to avoid high memory consumption. This choice was necessary because when inserting a high volume of records, holding all data in RAM becomes impractical.
 
-La quantità di record da inserire cambia in base al database, questo è dovuto al fatto che per ogni passaggio a fermata effettuato possono esistere da uno a tre dati raccolti:
-- ritardo/anticipo
-- passeggeri saliti
-- passeggeri scesi
+The number of records to be inserted differs between the two databases due to how data points are structured. Each stop call may include up to three distinct data points:
+- delay/early arrival time
+- number of boarding passengers
+- number of alighting passengers
 
-In PostgreSQL questi (eventualmente) tre dati vengono inseriti in un unico record mentre in InfluxDB vengono inseriti come tre diversi datapoints. Già in questo vediamo una differenza sostanziale relativa allo scenario di utilizzo in real time di uno e dell'altro database: con InfluxDB ogni dato che arriva dal campo si trasforma in un punto da inserire, con PostgreSQL ogni dato si trasforma invece in una _insert or update_. L'alternativa, per quanto riguarda PostgreSQL, è scegliere un momento in cui il sistema è scarico e preparare preventivamente tutti i record che dovranno ospitare i dati in arrivo durante la giornata, così da evitare le _insert or update_ ed effettuare solo degli _update_. Naturalmente è possibile strutturare la tabella in PostgreSQL in modo che ospiti una colonna _field_ ed una _value_ assumendo un aspetto più simile al bucket in InfluxDB ma questo sembra meno naturale per un database relazionale.
+In PostgreSQL, these data points are stored within a single record. In InfluxDB, each value is stored as a separate data point, resulting in up to three records per stop call.
 
-I dati provengono da sei diversi file con estensione .sql di circa 500mb ciascuno, le tempistiche di inserimento sono state le seguenti. Qualunque tempistica in questa relazione è espressa nel formato h:mm:ss.sss
+This reflects a fundamental difference in real-time usage:
+- With InfluxDB, each incoming data point (e.g., delay, passenger count) corresponds to one individual write operation
+- With PostgreSQL, incoming data is handled via insert or update logic, updating existing records where applicable
+- Alternatively, for PostgreSQL, one could pre-create placeholder records during system idle time and only perform updates during the day, avoiding insert or update overhead altogether
+- It would also be possible to model the PostgreSQL table with field and value columns, mimicking the structure of an InfluxDB bucket, but this is generally considered unnatural in a relational schema
+
+The data comes from six different .sql files, each roughly 500 MB in size. The measured insertion times are listed below. All time values in this report are expressed in the format h:mm:ss.sss.
 
 <table style="border-spacing: 3px;border-collapse: separate">
   <thead>
@@ -147,10 +157,10 @@ I dati provengono da sei diversi file con estensione .sql di circa 500mb ciascun
     <tr>
       <th>File</th>
       <th># records</th>
-      <th>Tempo</th>
+      <th>Time</th>
       <th>rec/sec</th>
       <th># records</th>
-      <th>Tempo</th>
+      <th>Time</th>
       <th>rec/sec</th>
     </tr>
   </thead>
@@ -212,32 +222,34 @@ I dati provengono da sei diversi file con estensione .sql di circa 500mb ciascun
   </tbody>
 </table>
 
-## Estrazione dei dati e prestazioni di select
+## Data Retrieval and Select Query Performance
 
-## Prima query: Ritardo medio fermata
-La prima query per testare e confrontare le prestazioni tra i due database in esame riguarda il calcolo del ritardo medio per ciascuna corsa in ciascuna fermata in un certo periodo di tempo.
+## First Query: Average Delay per Stop
+The first query used to test and compare performance between the two databases focuses on calculating the average delay per trip at each stop over a given time period.
 
-Questa query è stata creata in due versioni diverse e lanciata in entrambe le versioni su periodi di uno, tre e sei mesi. Le due versioni differiscono tra loro per l'assenza o la presenza di un raggruppamento su base mensile.
+This query was written in two variations, both executed over periods of one, three, and six months:
+- One version without monthly grouping
+- One version with grouping by month
 
-Le query eseguite in PostgreSQL per ottenere i dati sono le seguenti:
+The PostgreSQL queries used to retrieve the data are as follows:
 
-(Con raggruppamento)
+(With grouping)
 ```sql
 select DATE_TRUNC('month', datetime) AS month, route_id, trip_id, stop_id, avg(delay) from bigdata_project
 where day_of_service > '2020-09-10' and day_of_service < '2022-03-12' and delay is not null
 group by month, route_id, trip_id, stop_id
 ```
 
-(Senza raggruppamento)
+(Without grouping)
 ```sql
 select route_id, trip_id, stop_id, avg(delay) from bigdata_project
 where day_of_service > '2020-09-10' and day_of_service < '2021-10-12' and delay is not null
 group by route_id, trip_id, stop_id
 ```
 
-Per quanto riguarda InfluxDB invece sono le seguenti:
+The InfluxDB queries used are as follows:
 
-(Con raggruppamento)
+(With grouping)
 ```js
 from(bucket:"bigdata_project2")
 |> range(start: 2020-09-11T00:00:00Z, stop: 2021-03-11T23:59:59Z)
@@ -249,7 +261,7 @@ from(bucket:"bigdata_project2")
 |> keep(columns: ["_time", "route_id", "trip_id", "stop_id", "_value"])
 ```
 
-(Senza raggruppamento)
+(Without grouping)
 ```js
 from(bucket:"bigdata_project2")
 |> range(start: 2020-09-11T00:00:00Z, stop: 2020-10-11T23:59:59Z)
@@ -261,42 +273,43 @@ from(bucket:"bigdata_project2")
 |> keep(columns: ["_time", "route_id", "trip_id", "stop_id", "_value"])
 ```
 
-I tempi perché il processo in Python ottenesse la lista completa di risultati sono i seguenti e sono stati ottenuti dopo l'inserimento nei database del primo file di dati:
+The execution times, measuring the duration from query start to Python receiving the complete list of results, were recorded after inserting the first data file into each database:
 
 <table style="border-spacing: 3px;border-collapse: separate">
   <thead>
     <tr>
       <th></th>
-      <th colspan="3" style="border-bottom:1px solid red">PostgreSQL</th>
-      <th colspan="3" style="border-bottom:1px solid green">Influxdb</th>
+      <th colspan="3" style="border-bottom:1px solid green">PostgreSQL</th>
+      <th colspan="3" style="border-bottom:1px solid red">Influxdb</th>
     </tr>
     <tr>
-      <th>Raggruppamento</th>
-      <th>Un mese</th>
-      <th>Tre mesi</th>
-      <th>Sei mesi</th>
-      <th>Un mese</th>
-      <th>Tre mesi</th>
-      <th>Sei mesi</th>
+      <th>Grouping</th>
+      <th>1 month</th>
+      <th>3 months</th>
+      <th>6 months</th>
+      <th>1 month</th>
+      <th>3 months</th>
+      <th>6 months</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td>Senza</td>
+      <td>no</td>
       <td>0:00:00.369832</td><td>0:00:00.472875</td><td>0:00:01.141519</td>
       <td>0:00:07.040072</td><td>0:00:07.864913</td><td>0:00:54.924719</td>
     </tr>
     <tr>
-      <td>Con</td>
+      <td>yes</td>
       <td>0:00:00.564010</td><td>0:00:00.640163</td><td>0:00:01.854010</td>
       <td>0:00:09.885804</td><td>0:00:19.470520</td><td>0:01:27.276970</td>
     </tr>
   </tbody>
 </table>
 
-Vediamo che la situazione per quanto riguarda il recupero dei dati si è molto differente rispetto all'inserimento. In fase di lettura dei dati è presente infatti una fortissima disparità che vede PostgreSQL estremamente più veloce rispetto ad InfluxDB nella lettura. Parleremo in seguito di come questo può non essere un problema per l'utilizzatore di InfluxDB.
+We can observe that data retrieval performance differs significantly from data insertion performance. Specifically, PostgreSQL demonstrates much faster read performance compared to InfluxDB in this scenario.
+This discrepancy in query speed, however, may not necessarily be a major issue for InfluxDB users, as discussed later.
 
-Seguono i tempi per le stesse query nelle stesse modalità ma con tutti i dati inseriti:
+The following section includes the execution times for the same queries after all data files were inserted:
 
 <table style="border-spacing: 3px;border-collapse: separate">
   <thead>
@@ -306,54 +319,58 @@ Seguono i tempi per le stesse query nelle stesse modalità ma con tutti i dati i
       <th colspan="3" style="border-bottom:1px solid red">InfluxDB</th>
     </tr>
     <tr>
-      <th>Raggruppamento</th>
-      <th>Un mese</th>
-      <th>Tre mesi</th>
-      <th>Sei mesi</th>
-      <th>Un mese</th>
-      <th>Tre mesi</th>
-      <th>Sei mesi</th>
+      <th>Grouping</th>
+      <th>1 month</th>
+      <th>3 months</th>
+      <th>6 months</th>
+      <th>1 month</th>
+      <th>3 months</th>
+      <th>6 months</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td>Senza</td>
+      <td>no</td>
       <td>0:00:01.187149</td><td>0:00:01.292565</td><td>0:00:02.221006</td>
       <td>0:00:08.133967</td><td>0:00:12.281949</td><td>0:00:42.795060</td>
     </tr>
     <tr>
-      <td>Con</td>
+      <td>yes</td>
       <td>0:00:01.431923</td><td>0:00:01.574078</td><td>0:00:02.353574</td>
       <td>0:00:18.449262</td><td>0:00:30.584004</td><td>0:01:30.440092</td>
     </tr>
   </tbody>
 </table>
 
-## Una questione di cardinalità
-La cardinalità è un concetto importante in InfluxDB v2 ed inficia pesantemente le prestazioni ed i requisiti, tanto che si può mettere in relazione la cardinalità con il quantitativo di RAM occupata.
+## A Matter of Cardinality
+Cardinality is a key concept in InfluxDB v2, significantly affecting both performance and resource usage. In fact, there is a direct relationship between cardinality and RAM consumption.
 
-Nella versione 3 di InfluxDB gli autori promettono di aver modificato la gestione dei tag impedendo ora all'elevata cardinalità di diventare un problema, tuttavia questa nuova versione è disponibile solo come servizio a pagamento in cloud ed è closed source, non prendiamo quindi in considerazione la sua esistenza e continuiamo a parlare di InfluxDB v2.
+In InfluxDB v3, the developers claim to have changed how tags are managed, making high cardinality less of a performance bottleneck. However, since InfluxDB v3 is closed-source, available only as a paid cloud service, it is excluded from this analysis, which focuses exclusively on InfluxDB v2.
 
-Per studiare a fondo le prestazioni di InfluxDB nei vari casi è stato usato un set di dati più ristretto del precedente e sono stati creati diversi buckets con una diversa configurazione di tags:
+To thoroughly investigate how InfluxDB performs under different conditions, a smaller dataset was used, and multiple buckets were created with varying tag configurations:
 1) stop_call
 2) Route, Trip, Stop, Block
 3) Route, Trip, Stop, stop_call, Block
 4) Block, route % 5, trip % 5, stop % 5
 5) Block
 
-La seconda combinazione è quella più naturale mentre la prima e la terza sono state create per valutarne gli impatti sulle prestazioni. La quarta e la quinta non hanno utilità pratica ma sono state create solo per analizzare la situazione in cui si hanno tag con cardinalità ridotta oppure un unico tag.
-stop_call é generato dalla concatenazione tra tre diversi tag e la sua cardinalità é pari alla moltiplicazione tra le cardinalità di tali tag.
+The second configuration represents the most natural and realistic setup.
+The first and third configurations were designed to evaluate the impact of extremely high cardinality.
+The fourth and fifth configurations have no practical application but were included to observe performance under artificially reduced cardinality, either by lowering tag diversity or using a single tag.
 
-Per la quarta combinazione i tag con cardinalità maggiore sono stati inseriti dopo un'operazione di modulo 5 in modo da abbassarne la cardinalità ma avere comunque lo stesso quantitativo di informazioni inserite nel bucket.
+The stop_call tag is generated by concatenating three different tags, meaning its cardinality equals the product of the cardinalities of these individual tags.
 
-Sono infine state create, per confronto, due tabelle in Postgres partendo dagli stessi set di dati:
+In the fourth setup, the most variable tags were modulated by 5 (mod 5) to lower their cardinality while maintaining the same total number of data points inserted into the bucket.
+
+For comparison purposes, two PostgreSQL tables were also created using the same datasets:
 1) Route, Trip, Stop, Block
 2) Block
 
-### Prestazioni in inserimento
+### Insert Performance
 
-Per i tag fare riferimento all'elenco qui sopra. Il tempo è sempre nel formato h:mm:ss.sss mentre rec/sec indica il numero di record inseriti al secondo.
-|Tags|         Tempo|rec/sec|
+Referencing the tag configurations listed above, the following table summarizes insertion performance. Time is expressed in h:mm:ss.sss, and rec/sec indicates the number of records inserted per second.
+
+|Tags|          Time|rec/sec|
 |----|--------------|-------|
 | IN1|0:07:12.722923|5139.89|
 | IN2|0:07:38.987807|4845.77|
@@ -363,15 +380,15 @@ Per i tag fare riferimento all'elenco qui sopra. Il tempo è sempre nel formato 
 | PG1|0:33:23.441024| 790.37|
 | PG2|0:33:49.539156| 780.21|
 
-All'aumentare del numero di tag diminuisce in maniera non rilevante la velocità di inserimento dei records. In ogni caso è evidente anche da questa prova come la velocità di inserimento dei dati in InfluxDB sia un punto forte dello stesso rispetto a PostgreSQL.
+As the number of tags increases, the insert speed in InfluxDB decreases slightly, but not dramatically. Overall, it is clear that InfluxDB consistently outperforms PostgreSQL in terms of insert speed, confirming one of its key strengths.
 
-### Prestazioni di lettura
-Per confrontare le varie configurazioni possiamo fare tre query che differiscono solo per il raggruppamento:
-- una raggruppa per la combinazione route, trip e stop
-- una raggruppa per stop_call, che ricordo essere il prodotto cartesiano di route, trip e stop
-- l'ultima raggruppa per block
+### Read Performance
+To compare the different configurations, three queries were executed, differing only by their grouping:
+- one grouped by route, trip, and stop
+- one grouped by stop_call (the Cartesian product of route, trip, and stop)
+- one grouped by block
 
-|Bucket|Tempo         |Numero risultati|Raggruppamento    |
+|Bucket|Time          |       # results|Grouping by       |
 |------|--------------|----------------|------------------|
 |  IN2 |0:00:24.026554|           41350| Route, trip, stop|
 |  IN3 |0:00:24.578068|           41350| Route, trip, stop|
@@ -384,13 +401,16 @@ Per confrontare le varie configurazioni possiamo fare tre query che differiscono
 |  PG1 |0:00:00.909779|              39| block            |
 |  PG2 |0:00:00.780086|              39| block            |
 
-Da questa tabella possiamo dedurre diverse cose:
-- guardando le query con raggruppamento su route, trip e stop nel bucket IN2 e nel bucket IN3, filtrando per tre tag separati (route, trip e stop) su una tabella il fatto che essa abbia o meno un tag che ne sia la combinazione (stop_call) non è influente
-- guardando le query sul bucket IN3, utilizzare un solo tag dato dalla combinazione di tre tag diversi non sembra dare un chiaro vantaggio rispetto alla combinazione di più tag con la stessa cardinalità risultante
-- una query che lavora sullo stesso numero di dati nello stesso periodo ma utilizza solo un tag con cardinalità minore impiega un tempo decisamente minore, come si vede confrontando i raggruppamenti per block e per route, trip e stop su IN2 o su IN3
-- una query che lavora sullo stesso numero di dati nello stesso periodo ma su un bucket che non possiede un'elevata cardinalità è estremamente più performante, come si vede dalle query per block su IN4 e IN5 rispetto a IN2 e IN3
+From this table, we can draw several conclusions:
+- When grouping by route, trip, and stop on IN2 and IN3, filtering by the three separate tags or by a pre-concatenated tag (stop_call) makes no significant difference in performance
+- Using a single combined tag (stop_call in IN3) provides no clear performance benefit over using multiple tags with the same resulting cardinality
+- Queries that operate on the same number of data points over the same time period, but group by a lower-cardinality tag (e.g., block), perform noticeably faster, as seen when comparing block vs. route/trip/stop groupings on IN2 or IN3
+- Queries on buckets with lower overall cardinality (IN4 and IN5) are dramatically more performant, especially when grouped by block, compared to IN2 and IN3
 
-In particolare, la query su IN5 è l'unica query in InfluxDB più performante delle query su PostgreSQL, a parità di dati memorizzati. Nel caso non siano presenti molti tag e la cardinalità sia limitata, InfluxDB riesce ad essere più performante di PostgreSQL anche in lettura mentre quando i tag e/o la loro cardinalità aumentano le prestazioni in lettura di InfluxDB degradano molto più velocemente di quelle di PostgreSQL.
+In particular, the query on IN5 is the only case where InfluxDB outperforms PostgreSQL on read performance, with the same volume of data stored.
+This indicates that:
+- InfluxDB performs well when cardinality is low, even in read scenarios
+- As the number of tags or their cardinality increases, InfluxDB's read performance degrades much faster than PostgreSQL's
 
 ### Occupazione spazio su disco
 
