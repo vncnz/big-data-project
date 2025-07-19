@@ -1,91 +1,108 @@
-# Progetto d'esame per Big Data AA 2022/2023 - Matricola VR457811
+# Big Data Exam Project - Academic Year 2022/2023 - Student ID VR457811
 
-## Introduzione e contesto
+#### Note
+This project was originally a university assignment, but extended with real-world benchmarks and analysis. Original language it is written with was italian.
 
-Quella che segue è una relazione che confronta le prestazioni nella gestione di un numero significativo di dati in due diverse tipologie di database: PostgreSQL e InfluxDB, L'analisi si basa su un confronto nell'utilizzo reale degli stessi nel contesto di seguito descritto.
+## Introduction and Context
 
-Trattandosi di due database profondamente diversi ed essendo InfluxDB poco conosciuto vedremo anche gli aspetti principali della sua architettura e del suo funzionamento.
+This document presents a performance comparison between two different types of databases, PostgreSQL and InfluxDB, focusing on their ability to handle large amounts of data. The analysis is based on real-world usage scenarios, as described below.
 
-La parte implementativa e di analisi si concentra sul salvataggio e sulla rielaborazione di dati di tipo temporale, più nello specifico dati relativi alla registrazione dei passaggi a fermata dei mezzi di trasporto pubblico di una città italiana di medie dimensioni. L'idea nasce come ipotetica estensione delle funzionalità di un sistema AVM (Automatic Vehicle Monitoring) realizzato dal sottoscritto in ambito lavorativo. Tale sistema riceve i dati grezzi da un apparato GPS presente a bordo di ogni autobus e fornisce le seguenti funzionalità:
-- verifica che il mezzo sia correttamente sul percorso a lui assegnato
-- riconosce il passaggio a fermata, ossia l'azione di passaggio accanto ad ogni fermata designata e con eventuale fermata del mezzo per far salire e scendere i passeggeri
-- calcola il ritardo/anticipo del mezzo rispetto alla tabella di marcia per la corsa a cui è assegnato
-- memorizza una serie di dati:
-  - i segnali grezzi ricevuti dal mezzo
-  - i segnali rielaborati con l'aggiunta di indicazioni sullo stato del mezzo (corsa assegnata, prossima fermata, anticipo/ritardo, passeggeri a bordo, eccetera)
-  - i dati di passaggio per la reportistica, ovvero per la produzione di report mensili che l'azienda deve consegnare al comune per ricevere un compenso economico variabile in base alla qualità del servizio effettuato
+Since the two databases are fundamentally different — and InfluxDB is relatively unknown — this report also includes an overview of its main architecture and functionalities.
 
-Ogni record di questo ultimo tipo rappresenta una _stop call_, termine usato nel'ambito del trasporto pubblico per indicare nello specifico una fermata effettuata da un mezzo che sta servendo una determinata corsa su una determinata linea, si tratta di dati importanti da memorizzare a fini reportistici in quanto l'azienda li utilizza per quantificare il rimborso spettante dal Comune in base alla qualità del servizio. Solitamente vengono generati dei report su base mensile ma i dati devono persistere per anni in quanto devono rimanere disponibili in caso di richiesta da parte del sistema giudiziario, nel caso in cui accadesse un incidente e fosse necessario svolgere delle indagini o più semplicemente l'azienda stessa necessitasse di svolgere un'analisi Interna sul servizio effettuato.
+The implementation and analysis focus on storing and processing time-series data, specifically related to public transportation stop events in a medium-sized Italian city. This project originated as a hypothetical extension of the features of an Automatic Vehicle Monitoring (AVM) system I developed in a professional context. That system receives raw data from GPS devices installed on board each bus and provides the following functionalities:
 
-Uno dei punti critici del sistema sviluppato riguarda proprio il salvataggio e la rielaborazione dei dati di reportistica in quanto si tratta di una grandissima quantità di dati da leggere, scrivere e rielaborare. Per dare un'idea più chiara, se in una piccola città sono previste 400 corse al giorno ed ognuna ha mediamente 30 fermate il sistema deve memorizzare 12000 record giornalieri di questo tipo; considerate 20 ore di servizio si tratta di una _stop call_ ogni 6 secondi in media ed un milione di record ogni tre mesi.
+- verifies that the vehicle is following its assigned route
+- detects stop calls, meaning the action of passing by or stopping at designated bus stops to pick up or drop off passengers
+- calculates delays or early arrivals relative to the scheduled timetable
+- stores various types of data:
+  - raw signals received from the vehicle
+  - processed signals enriched with information such as assigned trip, next stop, delay/early status, number of passengers on board, etc.
+  - stop call records for reporting purposes, used to generate monthly reports that the company must submit to the municipality to receive compensation based on service quality
 
-Attualmente i limiti riscontrati a livello di prestazioni del database PostgreSQL utilizzato per tale sistema sono stati parzialmente aggirati salvando oltre ai dati dettagliati alcune statistiche pre-calcolate sul breve periodo basandosi su dati che vengono tenuti in RAM.
+Each of these last records represents a _stop call_, a term commonly used in public transportation to describe a specific stop made by a vehicle while operating a certain trip on a specific route. These records are crucial for reporting since the company uses them to calculate reimbursement from the municipality, which varies according to service quality. Reports are typically generated monthly, but data must be retained for several years for legal compliance (e.g., in case of incidents requiring judicial investigation) or for internal service analysis.
 
-Una caratteristica assente nel sistema, e che ho considerato intrigante come punto di partenza per il confronto oggetto di questa relazione, è l'analisi dei dati archiviati per individuare eventuali discrepanze ricorrenti tra l'orario delle fermate programmate e l'orario effettivo di passaggio nella realtà quotidiana. Un'analisi di questo tipo richiede la rielaborazione di un grande numero di record.
+A critical aspect of the existing system is the storage and post-processing of reporting data, due to the large volume of records that must be read, written, and analyzed. For context: in a small city, there are approximately 400 trips per day, each with an average of 30 stops, resulting in around 12,000 stop calls per day. Spread over 20 hours of service, that’s one stop call every six seconds on average, and roughly one million records every three months.
 
-## Obiettivo delle query
+Currently, performance limitations with the PostgreSQL database have been partially mitigated by saving not only raw data but also short-term pre-aggregated statistics, relying on in-memory data caching.
 
-L'obiettivo è la creazione di statistiche che risultino utili all'azienda cliente, in caso di un'effettiva implementazione nel sistema originale, per fornire informazioni utili per la correzione ed ottimizzazione delle tabelle relative ai passaggi a fermata che gli autobus devono seguire.
+A feature missing in the current system, which I considered interesting for this comparative study, is the analysis of archived data to identify recurring discrepancies between scheduled stop times and actual arrival times. Such analysis requires the post-processing of a large dataset.
 
-Vengono analizzate le prestazioni dei due database sia in fase di salvataggio che di interrogazione. Le prestazioni dipendono chiaramente da un grande numero di variabili e da una natura diversa dei database stessi, è stato fatto il possibile per porre entrambi i sistemi nelle stesse condizioni operative.
+## Query Objectives
 
-## Limiti di questa analisi prestazionale
+The goal is to generate statistics that could be useful for the client company — if this were implemented in the original system — to help optimize bus stop scheduling.
 
-I due database confrontati non differiscono solo nella struttura dei dati (relazionale vs time-series) e nell'obiettivo (dati generici vs serie temporali) ma anche nell'architettura di base. Mentre PostgreSQL viene eseguito solitamente come mono-istanza in locale, sulla macchina che ospita anche gli altri servizi o al massimo su una macchina dedicata, InfluxDB nasce come sistema di memorizzazione cloud-oriented. Per questo progetto, tuttavia, è stata utilizzata una versione installabile in locale per poter confrontare le prestazioni a parità di risorse hardware ed in un ambiente il più possibile controllato. Questo toglie ad InfluxDB parte dei suoi vantaggi.
+The project analyzes the performance of both databases in terms of write speed and query speed. Obviously, performance depends on many factors, and since the databases serve different use cases by design, every effort was made to create comparable test conditions.
 
-## Cenni teorici su InfluxDB
-Iniziamo da una spiegazione del funzionamento di InfluxDB, il sistema meno conosciuto tra i due a confronto.
+## Limitations of This Performance Analysis
 
-Si tratta di un DBMS scritto prevalentemente in Go che utilizza i Time Structured Merge Tree per memorizzare in maniera efficiente serie temporali. I dati memorizzati vengono compressi ed organizzati in _shards_, gruppi di dati relativi allo stesso arco temporale. Per eseguire le query si utilizza un linguaggio chiamato _Flux_, organizzato come una specie di pipeline di operazioni sui dati in cui ogni comando lavora sull'output del comando precedente. 
+The two databases differ not only in data structure (relational vs. time-series) and intended use case (general-purpose vs. time-series) but also in system architecture. PostgreSQL typically runs as a local, single-instance service, either on the same machine as other services or on a dedicated server. InfluxDB, on the other hand, was designed with a cloud-oriented, distributed architecture in mind.
 
-A differenza della maggior parte dei database, in InfluxDB è possibile raggruppare i dati per funzioni di aggregazione senza perderne il dettaglio ed è possibile, dopo un raggruppamento, espandere nuovamente i risultati ed applicare un differente raggruppamento. Offre anche una serie di funzioni comode per la manipolazione temporale dei dati, ad esempio l'aggregazione per finestre temporali.
+However, for the purposes of this project, I used the local installation of InfluxDB to ensure comparable hardware and a controlled environment, which also removes some of InfluxDB’s advantages in distributed scenarios.
 
-L'interfaccia tra utilizzatore ed engine è di tipo web ed è implementata tramite delle RESTful API per i programmi, è presente inoltre una pagina di gestione via web per l'accesso diretto degli utenti. Quest'ultima risulta un'interfaccia molto curata che consente anche la composizione guidata di query e la visualizzazione dei risultati sotto forma di grafici. Per questo progetto tuttavia ho utilizzato degli script in Python.
+## Theoretical Background on InfluxDB
+Let’s start with a brief explanation of InfluxDB, as it is less widely known compared to PostgreSQL.
 
-La memorizzazione di nuovi dati su InfluxDB segue due fasi distinte: la scrittura in file WAL che fungono da buffer e la scrittura nel database vero e proprio. Per questo motivo gli autori di InfluxDB consigliano, per sistemi in produzione e con alti requisiti di performance, di avere la cartella dei database e la cartella degli WAL su due volumi fisici separati ottimizzando così il throughput dei dati sul disco. Con la versione 2.X di InfluxDB l'engine sfrutta come accennato una tecnologia chiamata Time-Structured Merge Tree (TSM) che organizza i dati su disco in un formato colonnare e, negli stessi files, gli indici.
+InfluxDB is a DBMS written primarily in Go that uses Time-Structured Merge Trees (TSM) to efficiently store time-series data. Data is compressed and organized into _shards_, which group records by time range. Queries are executed using a language called _Flux_, which works as a pipeline of data operations, where each command processes the output of the previous one.
 
-Da sottolineare, in InfluxDB non esiste l'operazione di _update_ dei dati.
+Unlike most databases, InfluxDB allows you to perform aggregations without losing data granularity and to expand or re-group results after initial aggregations. It also provides useful time-based functions, such as windowing aggregations.
 
-# Progetto di confronto
+The user interface is web-based, providing RESTful APIs for programmatic access and a modern web dashboard for direct user interaction. The dashboard includes a graphical query builder and built-in visualization tools. However, in this project, all queries and interactions were handled via Python scripts.
 
-## Tecnologie usate
+InfluxDB uses a two-phase write process: first, data is written to Write-Ahead Log (WAL) files acting as a buffer, and then it is flushed into the main database storage. For production systems with high throughput, InfluxDB’s authors recommend storing WAL files and database files on separate physical volumes to maximize disk I/O performance.
 
-Il progetto è realizzato in Python 3.x, utilizza python-influxdb e psycopg2 per l'esecuzione dei salvataggi e delle interrogazioni rispettivamente in InfluxDB ed in PostgreSQL. I dati provengono da un database utilizzato realmente in una città italiana di piccole dimensioni, sono stati esportati tramite la creazione di file sql che sono stati letti ed esportati, tramite due script separati, nei database di destinazione. I due script condividono la maggior parte del codice e differiscono per la sola parte legata allo specifico database di destinazione.
+Since version 2.x, InfluxDB uses the TSM engine to store data in a columnar format, combining data and indexes within the same files to optimize query performance.
 
-## Configurazione software/hardware e nota sulle prestazioni
+A key distinction of InfluxDB: there is no “update” operation. Data is always appended, which aligns with its time-series focus.
 
-Qualunque dato prestazionale presente in questo documento si riferisce all'esecuzione su una macchina virtuale VirtualBox con 4 core e 8gb di RAM. La CPU fisica è una AMD Ryzen 7 4800U e grazie all'opzione PAE/NX attiva 4 dei suoi core sono esposti direttamente alla VM. Il disco virtuale è del tipo "dynamic allocation storage" e si trova fisicamente su un disco NVME M2 connesso tramite USB3.1. Su macchine o configurazioni differenti le prestazioni possono chiaramente differire ma lo scopo dei tempi qui riportati è fine al confronto tra i due database e non devono essere presi in senso assoluto.
+# Comparison Project
 
-Il sistema operativo è GNU/Linux, per maggior precisione una distro Arch.
+## Technologies Used
 
-## Descrizione dell'organizzazione dei dati
-Siccome InfluxDB nasce per gestire serie temporali e non altro, la maggior parte dei dati richiedono il salvataggio in un database di appoggio che può essere proprio PostgreSQL. Mentre PostgreSQL può essere l'unico database utilizzato per raggiungere l'obiettivo, nel caso di InfluxDB si avrà invece la coesistenza dei due database, uno utilizzato per la memorizzazione di tutti i dati non temporali ed uno utilizzato per questi ultimi. Non esistono vincoli specifici che impediscono il salvataggio di anagrafiche in InfluxDB ma è un tipo di dati perfetto per un database relazionale e non timeseries-oriented.
+The project is developed in Python 3.x and uses the python-influxdb and psycopg2 libraries to handle data insertion and querying in InfluxDB and PostgreSQL, respectively.
+The data comes from a real-world database used by a small Italian city. The data was exported by generating SQL dump files, which were then processed and imported into the target databases using two separate Python scripts. These scripts share most of the codebase and differ only in the portions related to the specifics of the target database.
 
-In questo progetto si immagina quindi di avere le anagrafiche di fermate, linee e quant'altro residenti in tabelle PostgreSQL dedicate che non vengono però implementate per evitare che ciò interferisca con le query in esame e perché superfluo ai fini dell'analisi. La struttura del database PostgreSQL da cui sono stati estratti i dati ha le seguenti colonne:
+## Software/Hardware Configuration and Performance Disclaimer
 
-- [ ] schedule_id: id della pianificazione attiva
-- [x] block_id: id del turno macchina
-- [x] trip_id: id della corsa
-- [ ] arrival_time: orario di arrivo previsto
-- [ ] real_time: orario di arrivo reale
-- [x] stop_id: id della fermata servita
-- [ ] stop_sequence: autoincrementale della fermata all'interno del turno macchina
-- [ ] shape_dist_traveled: distanza prevista della fermata dalla partenza della corsa
-- [ ] real_dist_traveled distanza percorsa dal mezzo dalla partenza della corsa
-- [x] day_of_service: giorno di servizio
-- [x] psg_up: passeggeri saliti alla fermata
-- [x] psg_down: passeggeri scesi alla fermata
-- [ ] creation_timestamp: timestamp di creazione del record
-- [x] update_timestamp: timestamp di aggiornamento del record
-- [ ] vehicle_id: id del veicolo che ha effettuato la fermata
-- [x] delay: ritardo rispetto al passaggio previsto
-- [ ] reported: fermata recistrata
-- [x] route_id: id della linea
-- [ ] quality: qualità del servizio in base al ritardo
-- [ ] served: non usato
-- [ ] fake: boolean che indica se la registrazione della fermata è reale o calcolata a posteriori
+All performance-related data in this document refers to execution within a VirtualBox virtual machine configured with 4 cores and 8 GB RAM.
+The host machine is equipped with an AMD Ryzen 7 4800U CPU, with PAE/NX enabled, allowing four cores to be directly assigned to the VM. The virtual disk uses dynamic allocation storage and is physically located on an NVMe M.2 SSD connected via USB 3.1.
 
-I dati marcati con un check sono stati implementati in questo progetto e quindi travasati, gli altri dati sono stati esclusi perché considerati non utili ai fini del confronto prestazionale tra i database. Alcuni di questi ultimi sono strettamente legati al funzionamento del sistema di provenienza (ad esempio i flag _served_ e _fake_), allo studio di eventuali bug (ad esempio _creation_timestamp_) e/o a politiche economiche legate al cliente per cui il sistema è stato implementato (i campi _quality_, _shape_dist_traveled_ ed altri).
+Performance will naturally vary depending on hardware and system configurations; the goal of the timing data provided here is solely to compare the two databases under the same conditions and should not be considered absolute performance metrics.
+
+The operating system used is GNU/Linux, specifically Arch Linux.
+
+## Data Organization Overview
+
+Since InfluxDB is designed to handle time-series data and not general-purpose data storage, most non-time-series data should be stored in a secondary relational database, such as PostgreSQL. While PostgreSQL alone is capable of storing and handling all the required data, in an architecture involving InfluxDB, both databases coexist: one for time-series data and one for general-purpose data. There is no strict limitation preventing the storage of reference data (e.g., stop details) within InfluxDB, but relational databases are far more suitable for that purpose.
+
+For this project, it is assumed that reference data such as stops, routes, and other static datasets are stored in dedicated PostgreSQL tables. However, these tables were not implemented to avoid interference with the queries under analysis and because they are irrelevant to the scope of this performance comparison.
+
+The original PostgreSQL database structure used for data extraction contains the following columns:
+
+- [ ] schedule_id: active schedule ID
+- [x] block_id: vehicle block ID
+- [x] trip_id: trip ID
+- [ ] arrival_time: scheduled arrival time
+- [ ] real_time: actual arrival time
+- [x] stop_id: ID of the served stop
+- [ ] stop_sequence: incremental stop sequence within vehicle block
+- [ ] shape_dist_traveled: scheduled distance of the stop from trip start
+- [ ] real_dist_traveled: actual distance of the stop from trip start
+- [x] day_of_service: service day
+- [x] psg_up: passeggeri passengers boarding at the stop
+- [x] psg_down: passengers alighting at the stop
+- [ ] creation_timestamp: record creation timestamp
+- [x] update_timestamp: record update timestamp
+- [ ] vehicle_id: ID of the vehicle that served the stop
+- [x] delay: delay compared to scheduled stop time
+- [ ] reported: whether the stop was registered
+- [x] route_id: route ID
+- [ ] quality: service quality based on delay
+- [ ] served: unused field
+- [ ] fake: boolean flag indicating if the stop was real or post-processed
+
+Fields marked with a checkmark were included and migrated in this project, while the others were excluded, as they were not considered relevant for the performance comparison between the databases.
+
+The excluded fields are mainly tied to the logic of the original production system (e.g., _served_ and _fake_), used for internal debugging (_creation\_timestamp_), or related to business rules and contractual agreements (such as _quality_, _shape\_dist\_traveled_, etc.).
 
 ### Descrizione della base dati PostgreSQL
 Per l'implementazione in PostgreSQL è stata creata una tabella con i dati sopra indicati. Per ciascuna _stop call_ sono presenti in un unico record delay, psg_up e psg_down (se esistenti, NULL altrimenti).
