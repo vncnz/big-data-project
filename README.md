@@ -7,7 +7,7 @@ This project was originally a university assignment, but extended with real-worl
 
 This document presents a performance comparison between two different types of databases, PostgreSQL and InfluxDB, focusing on their ability to handle large amounts of data. The analysis is based on real-world usage scenarios, as described below.
 
-Since the two databases are fundamentally different — and InfluxDB is relatively unknown — this report also includes an overview of its main architecture and functionalities.
+Since the two databases are fundamentally different - and InfluxDB is relatively unknown - this report also includes an overview of its main architecture and functionalities.
 
 The implementation and analysis focus on storing and processing time-series data, specifically related to public transportation stop events in a medium-sized Italian city. This project originated as a hypothetical extension of the features of an Automatic Vehicle Monitoring (AVM) system I developed in a professional context. That system receives raw data from GPS devices installed on board each bus and provides the following functionalities:
 
@@ -29,7 +29,7 @@ A feature missing in the current system, which I considered interesting for this
 
 ## Query Objectives
 
-The goal is to generate statistics that could be useful for the client company — if this were implemented in the original system — to help optimize bus stop scheduling.
+The goal is to generate statistics that could be useful for the client company - if this were implemented in the original system - to help optimize bus stop scheduling.
 
 The project analyzes the performance of both databases in terms of write speed and query speed. Obviously, performance depends on many factors, and since the databases serve different use cases by design, every effort was made to create comparable test conditions.
 
@@ -412,27 +412,43 @@ This indicates that:
 - InfluxDB performs well when cardinality is low, even in read scenarios
 - As the number of tags or their cardinality increases, InfluxDB's read performance degrades much faster than PostgreSQL's
 
-### Occupazione spazio su disco
+### Disk Space Usage
 
-Per visualizzare in ambiente linux la dimensione dei vari buckets possiamo semplicemente eseguire un comando simile a `du -sh /home/vncnz/.influxdbv2/engine/data/* | sort -hr` ottenendo un output simile al seguente (l'indicazione del bucket è stata aggiunta a posteriori):
+To inspect the disk space usage of different buckets on a Linux system, a simple command like the following was used:
+`du -sh /home/vncnz/.influxdbv2/engine/data/* | sort -hr`
+
+This produces output similar to:
 
 ```sql
-4,7G    /home/vncnz/.influxdbv2/engine/data/b77778300c262ad4 --> bucket completo
-879M    /home/vncnz/.influxdbv2/engine/data/2e65568d31d832e4 --> bucket ridotto(IN3)
-697M    /home/vncnz/.influxdbv2/engine/data/f786e5d253b98a85 --> bucket ridotto(IN2)
-614M    /home/vncnz/.influxdbv2/engine/data/f7fd809664dfe27c --> bucket ridotto(IN1)
-48M	    /home/vncnz/.influxdbv2/engine/data/0794a0c95d6efca3 --> bucket ridotto(IN4)
-9,6M    /home/vncnz/.influxdbv2/engine/data/acf8fb1c6410bbe2 --> bucket ridotto(IN5)
-160K    /home/vncnz/.influxdbv2/engine/data/394df8c8e6b03e99 --> bucket per utilizzo interno dell'engine
+4,7G    /home/vncnz/.influxdbv2/engine/data/b77778300c262ad4 --> complete bucket
+879M    /home/vncnz/.influxdbv2/engine/data/2e65568d31d832e4 --> reduced bucket (IN3)
+697M    /home/vncnz/.influxdbv2/engine/data/f786e5d253b98a85 --> reduced bucket(IN2)
+614M    /home/vncnz/.influxdbv2/engine/data/f7fd809664dfe27c --> reduced bucket(IN1)
+48M	    /home/vncnz/.influxdbv2/engine/data/0794a0c95d6efca3 --> reduced bucket(IN4)
+9,6M    /home/vncnz/.influxdbv2/engine/data/acf8fb1c6410bbe2 --> reduced bucket(IN5)
+160K    /home/vncnz/.influxdbv2/engine/data/394df8c8e6b03e99 --> internal engine bucket
 ```
 
-Gli indici in InfluxDB sono memorizzati insieme ai dati nei file TSM stessi: i file TSM che vediamo qui contengono sia i dati effettivi delle serie temporali che i metadati e gli indici.
+In InfluxDB, indexes are stored together with the data inside TSM files. These files contain the actual time series data along with metadata and indexes.
 
-Per confronto, eseguendo in postgres la query `SELECT pg_size_pretty( pg_table_size('NOME_TABELLA') );` si vede un peso di 144MB per PG1 e 101MB per la PG2. A questi dobbiamo sommare la dimensione degli indici, 17M per l'indice sulla tabella PG1 e 10M per l'indice sulla tabella PG2, entrambi i valori sono ottenibili con una query del tipo `select pg_size_pretty(pg_indexes_size('NOME_TABELLA'))`. Avremmo potuto utilizzare la funzione `pg_total_relation_size` perdendo la distinzione tra peso dati e peso indici.
+For comparison, in PostgreSQL, using the query:
+`SELECT pg_size_pretty( pg_table_size('NOME_TABELLA') );`
 
-Riassumendo i dati abbiamo quindi la seguente tabella:
+the storage footprint was:
+- 144 MB for PG1
+- 101 MB for PG2
 
-|Mode|Spazio|
+Adding the index sizes, obtained via:
+`select pg_size_pretty(pg_indexes_size('NOME_TABELLA'))`
+
+we get:
+- 17 MB for PG1
+- 10 MB for PG2
+Alternatively, one could use `pg_total_relation_size` to get combined data+index size, but this analysis keeps them separate for clarity.
+
+#### Summary table
+
+|Mode| Space|
 |----|------|
 | IN1|  530M|
 | IN2|  658M|
@@ -442,19 +458,53 @@ Riassumendo i dati abbiamo quindi la seguente tabella:
 | PG1|  128M + 17M|
 | PG2|  91M + 10M|
 
-Confrontando il bucket IN4 con quelli delle altre modalità è evidente come il peso dei dati in InfluxDB sia decisamente ridotto e gli indici legati ai tag abbiano un peso molto elevato. E' altrettanto evidente come l'occupazione di spazio dei dati a bassa cardinalità, IN4, sia di circa un terzo rispetto alla corrispondente tabella in PostgreSQL. Confrontando poi IN5 con PG2 vediamo che InfluxDB arriva ad occupare, in queste condizioni, addirittura meno di un decimo dello spazio necessario a PostgreSQL.
+#### Observations
+- Comparing IN4 with other InfluxDB configurations, it’s clear that tag indexing heavily inflates disk usage.
+- With low-cardinality data (IN4), InfluxDB uses about one-third of the space compared to PostgreSQL.
+- In the extreme low-cardinality scenario (IN5 vs. PG2), InfluxDB requires less than one-tenth of the disk space used by PostgreSQL.
+
+## A Solution to InfluxDB’s Slow Data Retrieval: Tasks
+
+As observed, InfluxDB queries become inefficient with high cardinality, especially when querying long time ranges. However, InfluxDB offers a built-in feature that can mitigate this problem: tasks.
+
+Tasks are an ingestion mechanism that allow you to process, analyze, and aggregate data on the fly, writing the results into a separate bucket. This means you can pre-compute certain aggregations, making future queries faster and more predictable, since you no longer need to run heavy on-the-fly aggregations over large datasets.
+
+Tasks can also:
+- Trigger notifications when specific conditions occur,
+- Push data to external systems, e.g., by sending HTTP requests with JSON payloads,
+- Run automatically on configurable schedules (e.g., every hour, day, or week).
 
 
-## Una soluzione alla lentezza del recupero dati di InfluxDB: i task
-Abbiamo visto come in presenza di un'alta cardinalità le query per la lettura e  manipolazione dei dati abbiano tempi di esecuzione non sostenibili. InfluxDB ha però una funzionalità particolare che può essere utile anche (ma non solo) per questo problema. I task sono uno strumento di "ingestione" dei dati, consentono di effettuare calcoli, analisi e/o aggregazioni sui dati di un bucket scrivendo i risultati in un altro bucket in modo che siano già pronti all'uso, senza la necessità di eseguire query di aggregazione on-the-fly. I task possono inoltre attivare automaticamente notifiche al verificarsi di determinate condizioni o interfacciarsi a strumenti esterni, ad esempio convertendo i risultati in json ed inviandoli automaticamente tramite una chiamata http. Vengono eseguiti in modalità automatica in base a tempistiche configurabili, ad esempio ad ogni intervallo temporale prefissato a partire dal primo dato. Tornando alla nostra query di prova "Ritardo medio fermata" un task potrebbe essere eseguito ogni settimana e scrivere su un bucket di destinazione la riga contenente i risultati dell'aggregazione dei dati dell'ultima settimana, query che ci possiamo aspettare impiegare pochi secondi (abbiamo visto i tempi su un mese, un periodo lungo quattro volte tanto). Considerato che come abbiamo potuto vedere InfluxDB soffre quando si lavora su intervalli temporali lunghi ma scala bene al crescere della quantità di dati l'esecuzione periodica di un task non soffre del continuo accumulo di dati sul database e può svolgere un'aggregazione dei dati settimanali in maniera efficiente. I task vengono utilizzati dall'engine stesso anche per la pulizia dei dati obsoleti secondo policy di data retention definibili separatamente sui singoli bucket. Queste operazioni di pulizia sono un'altra funzionalità innata di InfluxDB e viene effettuata in maniera efficiente in quanto i dati sono organizzati in "pacchetti" su base temporale. Nella versione cloud del DBMS questi "pacchetti" vengono anche sparsi su macchine diverse bilanciando il più possibile il carico di lavoro della singola macchina, per cui una query che può risultare eccessivamente lenta per la versione installabile in locale può non creare alcun rallentamento nella versione cloud se i dati provengono da più nodi.
+#### Practical Example
 
-## L'alternativa PostgreSQL ai task di InfluxDB: pgAgent
-Anche per PostgreSQL esiste la possibilità di eseguire automaticamente alcune operazioni tramite un'estensione chiamata pgAgent, che offre una configurabilità leggermente inferiore al competitor: manca ad esempio la possibilità di rimandare un'esecuzione se è ancora in corso la precedente o di eseguirla in ritardo ma considerando il datetime precedente al riinvio. pgAgent inoltre, per il contesto di utilizzo visto, non risolve il problema del rallentamento dovuto alla crescita della tabella su cui deve lavorare e rimanda al sistemista la configurazione di un partizionamento orizzontale e quant'altro possa essere necessario per riuscire a gestire i dati.
+Consider our previous example: “average delay per stop”. Instead of querying the raw bucket for an entire month, you could set up a task that runs weekly, calculating the weekly average delays, and storing these results in a dedicated bucket. Querying this aggregated bucket would be significantly faster, as the dataset is pre-computed and compact.
 
-## Seconda query: Media dei passeggeri saliti per fermata
-La seconda query per testare e confrontare le prestazioni tra i due database in esame riguarda il calcolo del numero medio di passeggeri saliti per ciascuna fermata in un certo periodo di tempo.
+Since InfluxDB struggles with long-range queries but scales well with increasing data volume, periodic tasks effectively mitigate performance issues by summarizing data incrementally, preventing query slowdowns as the overall dataset grows.
 
-Le query eseguite in PostgreSQL ed in InfluxDB per ottenere i dati sono le seguenti:
+#### Additional Benefits of Tasks
+
+- Retention policies: Tasks are used internally by InfluxDB to delete obsolete data based on per-bucket retention policies. This is handled efficiently thanks to InfluxDB’s time-partitioned data storage (TSM files).
+- Cloud advantage: In InfluxDB Cloud, TSM files are distributed across multiple nodes, meaning even large queries can remain performant thanks to load balancing and parallel execution. This distribution can mitigate bottlenecks seen in the self-hosted version.
+
+In summary, tasks allow for a proactive approach to data aggregation and maintenance, reducing query load, controlling resource usage, and improving responsiveness, especially in high-cardinality or high-throughput scenarios.
+
+## PostgreSQL’s Alternative to InfluxDB Tasks: pgAgent
+
+PostgreSQL also offers a way to schedule automated tasks via the pgAgent extension. This tool allows running periodic jobs, similar in concept to InfluxDB tasks, but with some limitations.
+
+Key differences:
+- Less flexibility: pgAgent lacks advanced scheduling features, such as skipping overlapping executions or backdating a run to account for missed intervals.
+- No built-in data retention: While InfluxDB naturally handles retention policies and automatic cleanup, in PostgreSQL you must manually implement data pruning strategies.
+- Performance scaling: pgAgent does not mitigate performance degradation as tables grow. It will operate on full datasets unless you set up partitioning or other optimizations yourself.
+- Maintenance burden: Efficient long-term data handling (e.g., table partitioning, materialized views) requires manual DBA intervention.
+
+In summary, while pgAgent offers some task scheduling capabilities, it lacks native time-series optimizations and automatic aggregation pipelines. For workloads involving huge time-series datasets, it requires significantly more manual setup and ongoing maintenance compared to InfluxDB’s out-of-the-box solutions.
+
+## Second Query: Average Boarded Passengers per Stop
+
+The second query used to test and compare performance between the two databases focuses on calculating the average number of passengers boarded at each stop within a defined time range.
+
+The queries executed in PostgreSQL and InfluxDB for this purpose are as follows:
 
 ```sql
 select DATE_TRUNC('month', datetime) AS month, extract(dow from datetime) as weekday, stop_id, avg(psg_up) from bigdata_project
@@ -478,7 +528,7 @@ from(bucket:"bigdata_project2")
 |> keep(columns: ["_time", "stop_id", "weekday", "_value", "_start", "_stop"])
 ```
 
-I tempi perché il processo in Python ottenesse la lista completa di risultati sono i seguenti e sono stati ottenuti dopo l'inserimento nei database di tutti i dati a disposizione:
+The execution times - measuring the duration required for the Python process to retrieve the full result set - were recorded after all available data had been inserted into both databases:
 
 <table style="border-spacing: 3px;border-collapse: separate">
   <thead>
@@ -495,37 +545,21 @@ I tempi perché il processo in Python ottenesse la lista completa di risultati s
   </tbody>
 </table>
 
-Questi risultati sono coerenti con le analisi fatte in maniera approfondita con la prima query. Il bucket IN4 ha infatti una cardinalità molto minore del bucket IN2 e questo si vede nel tempo necessario per ottenere i risultati. PostgreSQL riesce in ogni caso a produrre i risultati in un tempo minore.
+These results align with the findings from the first query:
+- The IN4 bucket, with much lower cardinality than IN2, consistently achieves faster query times.
+- Nevertheless, PostgreSQL outperforms InfluxDB in all scenarios, delivering results more quickly.
 
-## Considerazioni finali
+This once again highlights how cardinality impacts query speed in InfluxDB, while PostgreSQL remains more stable, regardless of the dataset's cardinality.
 
-Con questa relazione ed i test svolti si è voluto evidenziare aspetti positivi e negativi di InfluxDB, un DBMS poco conosciuto e con una focalizzazione sulle serie temporali, confrontandolo con un DBMS molto conosciuto e più general-purpose. PostgreSQL è un ottimo DBMS che gestisce una vasta gamma di tipi di dato, può addirittura gestire query spaziali con operazioni di intersezione, inclusione ed altro. Nelle ultime versioni è in grado di lavorare con efficienza anche su dati json, andando in competizione (parziale) anche con sistemi non relazionali come MongoDB. Abbiamo però visto che per determinati contesti ha senso esplorare sistemi alternativi, ad esempio nella gestione di serie temporali che mostrano una crescita rapida e richiedono la conservazione prolungata dei dati a patto che ci sia una bassa cardinalità dei dati correlati a ciascun valore della serie.
+## Final Considerations
 
+Through this report and the performed tests, the goal was to highlight the strengths and weaknesses of InfluxDB, a lesser-known time-series-oriented DBMS, by comparing it to a well-established general-purpose DBMS, PostgreSQL.
 
+PostgreSQL proves to be a highly versatile database, capable of handling a broad variety of data types - from classic relational data to spatial queries (e.g., intersection and containment operations), and even JSON data, positioning itself partially in competition with non-relational systems like MongoDB.
 
+However, this analysis shows that in specific scenarios, it is worthwhile to explore alternative systems. For example, when managing large-scale time-series data that:
+- grows rapidly,
+- requires long-term storage,
+- involves low-cardinality metadata associated with each data point (a limitation specific to InfluxDB v2, reportedly improved in v3).
 
-
-<!-- 
-
-FINE
-
-############################################################
-############################################################
-############################################################
-############################################################
-############################################################
-############################################################
-
-Sistemare il mettere un datetime in PostgreSQL per un confronto migliore (dato che non si usa il day_of_service in InfluxDB ma, appunto, un datetime)
-
-Link che confronta InfluxDB VERSIONE UNO con PostgreSQL, valutare se prenderne spunto: https://portavita.github.io/2018-07-31-blog_influxdb_vs_postgresql
-
-Altre fonti ancora da guardare:
-
-https://www.influxdata.com/comparison/influxdb-vs-postgres/
-
-https://dba.stackexchange.com/questions/275664/is-influxdb-faster-than-postgresql
-
-https://www.postgresql.org/message-id/6b25525b-8c36-620e-5da0-c900a7720c19%40mixmax.com
-
--->
+In such cases, InfluxDB offers significant advantages, especially in write performance and storage efficiency, albeit with trade-offs in query performance when cardinality increases. This emphasizes the importance of **choosing the right tool for the job**, based on the nature of the data and the operational requirements.
